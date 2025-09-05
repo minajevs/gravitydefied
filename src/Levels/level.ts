@@ -258,39 +258,44 @@ export class Level {
   readTrackData(arr: Uint8Array) {
     try {
       this.clear()
-      const [byte, newArr] = readByte(arr)
-      arr = newArr
-      console.log(byte)
+      let byteRes = readByte(arr)
+      let byte = byteRes[0]
+      arr = byteRes[1]
+      // If first byte is 50, read and skip 20 bytes
       if (byte == 50) {
         let bytes: number[] = []
-        bytes = [...arr]
+        for (let i = 0; i < 20; i++) {
+          let bRes = readByte(arr)
+          let b = bRes[0]
+          arr = bRes[1]
+          bytes.push(b)
+        }
       }
       this.m_forI = 0
       this.m_gotoI = 0
 
-      const [int1, newArr1] = readInt(arr)
-      arr = newArr1
-      this.startX = int1
-      const [int2, newArr2] = readInt(arr)
-      arr = newArr2
-      this.startY = int2
-      const [int3, newArr3] = readInt(arr)
-      arr = newArr3
-      this.finishX = int3
-      const [int4, newArr4] = readInt(arr)
-      arr = newArr4
-      this.finishY = int4
-
-      const [int5, newArr5] = readShort(arr)
-      arr = newArr5
-      let pointsCount = int5
-
-      const [int6, newArr6] = readInt(arr)
-      arr = newArr6
-      let firstPointX = int6
-      const [int7, newArr7] = readInt(arr)
-      arr = newArr7
-      let firstPointY = int7
+      let res
+      res = readInt(arr)
+      this.startX = res[0]
+      arr = res[1]
+      res = readInt(arr)
+      this.startY = res[0]
+      arr = res[1]
+      res = readInt(arr)
+      this.finishX = res[0]
+      arr = res[1]
+      res = readInt(arr)
+      this.finishY = res[0]
+      arr = res[1]
+      let pointsCountRes = readShort(arr)
+      let pointsCount = pointsCountRes[0]
+      arr = pointsCountRes[1]
+      res = readInt(arr)
+      let firstPointX = res[0]
+      arr = res[1]
+      res = readInt(arr)
+      let firstPointY = res[0]
+      arr = res[1]
 
       let k1 = firstPointX
       let l1 = firstPointY
@@ -299,33 +304,30 @@ export class Level {
       for (let i = 1; i < pointsCount; i++) {
         let x: number
         let y: number
-        const [byte0, newArr0] = readByte(arr)
-        arr = newArr0
+        let byte0Res = readByte(arr)
+        let byte0 = byte0Res[0]
+        arr = byte0Res[1]
         if (byte0 === -1) {
-          k1 = l1 = 0
-          const [int1, newArr1] = readInt(arr)
-          arr = newArr1
-          x = int1
-          const [int2, newArr2] = readInt(arr)
-          arr = newArr2
-          y = int2
+          k1 = 0
+          l1 = 0
+          let xRes = readInt(arr)
+          x = xRes[0]
+          arr = xRes[1]
+          let yRes = readInt(arr)
+          y = yRes[0]
+          arr = yRes[1]
         } else {
           x = byte0
-          const [int1, newArr1] = readInt(arr)
-          arr = newArr1
-          y = int1
+          let yByteRes = readByte(arr)
+          let yByte = yByteRes[0]
+          arr = yByteRes[1]
+          y = (yByte << 24) >> 24
         }
         k1 += x
         l1 += y
         this.unpackInt(k1, l1)
       }
-
-      console.log(this)
-
-      /*logDebug("Points: ");
-			for (int[] point: points) {
-				logDebug("(" + ((point[0] >> 16) << 3) + ", " + ((point[1] >> 16) << 3) + ")");
-			}*/
+      //console.log(this)
     } catch (ex) {
       console.log(ex)
     }
