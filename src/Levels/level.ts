@@ -53,17 +53,17 @@ export class Level {
       k > i1
     )
       return 0x10000
-    else return ((k << 32) / i1) >> 16
+    else return Number(((BigInt(k) << 32n) / BigInt(i1)) >> 16n)
   }
 
   _ifIIV(j: number, k: number) {
-    this.m_aI = (j << 16) >> 3
-    this.m_dI = (k << 16) >> 3
+    this.m_aI = Number((BigInt(j) << 16n) >> 3n)
+    this.m_dI = Number((BigInt(k) << 16n) >> 3n)
   }
 
   _aIIV(j: number, k: number) {
-    this.m_eI = j >> 1
-    this.m_bI = k >> 1
+    this.m_eI = Number(BigInt(j) >> 1n)
+    this.m_bI = Number(BigInt(k) >> 1n)
   }
 
   _aIIV2(j: number, k: number, i1: number) {
@@ -75,52 +75,68 @@ export class Level {
   _ifiIV(view: GameView, k: number, i1: number) {
     if (i1 <= this.pointsCount - 1) {
       let j1 =
-        this.m_gI - ((this.points[k][1] + this.points[i1 + 1][1]) >> 1) >= 0
-          ? this.m_gI - ((this.points[k][1] + this.points[i1 + 1][1]) >> 1)
+        this.m_gI -
+          Number(BigInt(this.points[k][1] + this.points[i1 + 1][1]) >> 1n) >=
+        0
+          ? this.m_gI -
+            Number(BigInt(this.points[k][1] + this.points[i1 + 1][1]) >> 1n)
           : 0
       if (this.m_gI <= this.points[k][1] || this.m_gI <= this.points[i1 + 1][1])
         j1 = j1 >= 0x50000 ? 0x50000 : j1
-      this.m_rI = ((this.m_rI * 49152) >> 16) + ((j1 * 16384) >> 16)
+      this.m_rI =
+        Number((BigInt(this.m_rI) * 49152n) >> 16n) +
+        Number((BigInt(j1) * 16384n) >> 16n)
       if (this.m_rI <= 0x88000) {
-        let k1 = ((0x190000 * this.m_rI) >> 16) >> 16
+        let k1 = Number((BigInt(0x190000 * this.m_rI) >> 16n) >> 16n)
         view.setColor(k1, k1, k1)
         let l1 = this.points[k][0] - this.points[k + 1][0]
-        let i2 =
-          (((this.points[k][1] - this.points[k + 1][1]) << 32) / l1) >> 16
-        let j2 = this.points[k][1] - ((this.points[k][0] * i2) >> 16)
-        let k2 = ((this.m_eI * i2) >> 16) + j2
+        let i2 = Number(
+          ((BigInt(this.points[k][1] - this.points[k + 1][1]) << 32n) /
+            BigInt(l1)) >>
+            16n
+        )
+        let j2 =
+          this.points[k][1] -
+          Number((BigInt(this.points[k][0]) * BigInt(i2)) >> 16n)
+        let k2 = Number((BigInt(this.m_eI) * BigInt(i2)) >> 16n) + j2
         l1 = this.points[i1][0] - this.points[i1 + 1][0]
-        i2 = (((this.points[i1][1] - this.points[i1 + 1][1]) << 32) / l1) >> 16
-        j2 = this.points[i1][1] - ((this.points[i1][0] * i2) >> 16)
-        let l2 = ((this.m_bI * i2) >> 16) + j2
+        i2 = Number(
+          ((BigInt(this.points[i1][1] - this.points[i1 + 1][1]) << 32n) /
+            BigInt(l1)) >>
+            16n
+        )
+        j2 =
+          this.points[i1][1] -
+          Number((BigInt(this.points[i1][0]) * BigInt(i2)) >> 16n)
+        let l2 = Number((BigInt(this.m_bI) * BigInt(i2)) >> 16n) + j2
         if (k == i1) {
           view._aIIIV(
-            (this.m_eI << 3) >> 16,
-            ((k2 + 0x10000) << 3) >> 16,
-            (this.m_bI << 3) >> 16,
-            ((l2 + 0x10000) << 3) >> 16
+            Number((BigInt(this.m_eI) << 3n) >> 16n),
+            Number((BigInt(k2 + 0x10000) << 3n) >> 16n),
+            Number((BigInt(this.m_bI) << 3n) >> 16n),
+            Number((BigInt(l2 + 0x10000) << 3n) >> 16n)
           )
           return
         }
         view._aIIIV(
-          (this.m_eI << 3) >> 16,
-          ((k2 + 0x10000) << 3) >> 16,
-          (this.points[k + 1][0] << 3) >> 16,
-          ((this.points[k + 1][1] + 0x10000) << 3) >> 16
+          Number((BigInt(this.m_eI) << 3n) >> 16n),
+          Number((BigInt(k2 + 0x10000) << 3n) >> 16n),
+          Number((BigInt(this.points[k + 1][0]) << 3n) >> 16n),
+          Number((BigInt(this.points[k + 1][1] + 0x10000) << 3n) >> 16n)
         )
         for (let i3 = k + 1; i3 < i1; i3++)
           view._aIIIV(
-            (this.points[i3][0] << 3) >> 16,
-            ((this.points[i3][1] + 0x10000) << 3) >> 16,
-            (this.points[i3 + 1][0] << 3) >> 16,
-            ((this.points[i3 + 1][1] + 0x10000) << 3) >> 16
+            Number((BigInt(this.points[i3][0]) << 3n) >> 16n),
+            Number((BigInt(this.points[i3][1] + 0x10000) << 3n) >> 16n),
+            Number((BigInt(this.points[i3 + 1][0]) << 3n) >> 16n),
+            Number((BigInt(this.points[i3 + 1][1] + 0x10000) << 3n) >> 16n)
           )
 
         view._aIIIV(
-          (this.points[i1][0] << 3) >> 16,
-          ((this.points[i1][1] + 0x10000) << 3) >> 16,
-          (this.m_bI << 3) >> 16,
-          ((l2 + 0x10000) << 3) >> 16
+          Number((BigInt(this.points[i1][0]) << 3n) >> 16n),
+          Number((BigInt(this.points[i1][1] + 0x10000) << 3n) >> 16n),
+          Number((BigInt(this.m_bI) << 3n) >> 16n),
+          Number((BigInt(l2 + 0x10000) << 3n) >> 16n)
         )
       }
     }
@@ -139,8 +155,8 @@ export class Level {
     let i3 = k - this.points[j2][0]
     let j3 = i1 + 0x320000 - this.points[j2][1]
     let k3 = Physics._doIII(i3, j3)
-    i3 = ((i3 << 32) / ((k3 >> 1) >> 1)) >> 16
-    j3 = ((j3 << 32) / ((k3 >> 1) >> 1)) >> 16
+    i3 = Number(((BigInt(i3) << 32n) / BigInt((k3 >> 1) >> 1)) >> 16n)
+    j3 = Number(((BigInt(j3) << 32n) / BigInt((k3 >> 1) >> 1)) >> 16n)
     view.setColor(0, 170, 0)
     do {
       if (j2 >= this.pointsCount - 1) break
@@ -149,8 +165,8 @@ export class Level {
       i3 = k - this.points[j2 + 1][0]
       j3 = i1 + 0x320000 - this.points[j2 + 1][1]
       let l3 = Physics._doIII(i3, j3)
-      i3 = ((i3 << 32) / ((l3 >> 1) >> 1)) >> 16
-      j3 = ((j3 << 32) / ((l3 >> 1) >> 1)) >> 16
+      i3 = Number(((BigInt(i3) << 32n) / BigInt((l3 >> 1) >> 1)) >> 16n)
+      j3 = Number(((BigInt(j3) << 32n) / BigInt((l3 >> 1) >> 1)) >> 16n)
       view._aIIIV(
         ((this.points[j2][0] + j1) << 3) >> 16,
         ((this.points[j2][1] + l1) << 3) >> 16,
@@ -209,22 +225,22 @@ export class Level {
     do {
       if (k >= this.pointsCount - 1) break
       view._aIIIV(
-        (this.points[k][0] << 3) >> 16,
-        (this.points[k][1] << 3) >> 16,
-        (this.points[k + 1][0] << 3) >> 16,
-        (this.points[k + 1][1] << 3) >> 16
+        Number((BigInt(this.points[k][0]) << 3n) >> 16n),
+        Number((BigInt(this.points[k][1]) << 3n) >> 16n),
+        Number((BigInt(this.points[k + 1][0]) << 3n) >> 16n),
+        Number((BigInt(this.points[k + 1][1]) << 3n) >> 16n)
       )
       if (this.m_gotoI == k) {
         view.drawStartFlag(
-          (this.points[this.m_gotoI][0] << 3) >> 16,
-          (this.points[this.m_gotoI][1] << 3) >> 16
+          Number((BigInt(this.points[this.m_gotoI][0]) << 3n) >> 16n),
+          Number((BigInt(this.points[this.m_gotoI][1]) << 3n) >> 16n)
         )
         view.setColor(0, 255, 0)
       }
       if (this.m_forI == k) {
         view.drawFinishFlag(
-          (this.points[this.m_forI][0] << 3) >> 16,
-          (this.points[this.m_forI][1] << 3) >> 16
+          Number((BigInt(this.points[this.m_forI][0]) << 3n) >> 16n),
+          Number((BigInt(this.points[this.m_forI][1]) << 3n) >> 16n)
         )
         view.setColor(0, 255, 0)
       }
@@ -234,7 +250,10 @@ export class Level {
   }
 
   unpackInt(x: number, y: number) {
-    this.addPoint((x << 16) >> 3, (y << 16) >> 3)
+    this.addPoint(
+      Number((BigInt(x) << 16n) >> 3n),
+      Number((BigInt(y) << 16n) >> 3n)
+    )
   }
 
   addPoint(x: number, y: number) {
@@ -243,7 +262,12 @@ export class Level {
       if (this.points != null)
         i1 = i1 >= this.points.length + 30 ? i1 : this.points.length + 30
       let ai: number[][] = init2Array(i1, 2)
-      if (this.points != null) ai = [...this.points]
+      if (this.points != null) {
+        for (let i = 0; i < this.points.length; i++) {
+          ai[i][0] = this.points[i][0]
+          ai[i][1] = this.points[i][1]
+        }
+      }
       // System.arraycopy(points, 0, ai, 0, points.length);
       this.points = ai
     }

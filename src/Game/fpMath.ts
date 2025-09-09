@@ -31,7 +31,8 @@ export class FPMath {
   public FPMath() {}
 
   public static divide(i: number, j: number) {
-    return ((i << 32) / j) >> 16
+    // Use BigInt to emulate 64-bit fixed-point division: (i << 32) / j >> 16
+    return Number(((BigInt(i) << 32n) / BigInt(j)) >> 16n)
   }
 
   public static sin(i: number) {

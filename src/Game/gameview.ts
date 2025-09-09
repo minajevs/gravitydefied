@@ -146,7 +146,6 @@ export class GameView {
 
     // drawGame
     this.drawGame()
-    console.log("drawGame")
 
     this.ctx.restore()
   }
@@ -158,8 +157,10 @@ export class GameView {
         this.ctx.fillRect(0, 0, this.scaledWidth, this.scaledHeight)
         this.drawBitmap(
           Bitmap.get("logo"),
-          this.scaledWidth / 2 - Bitmap.get("logo").width / 2,
-          this.scaledHeight / 2 - Bitmap.get("logo").height / 1.6
+          this.scaledWidth / 2 - Bitmap.getWidthDp("logo") / 2,
+          this.scaledHeight / 2 - Bitmap.getHeightDp("logo") / 1.6,
+          "logo",
+          0
         )
       }
       if (this.showIntro === 2) {
@@ -167,8 +168,10 @@ export class GameView {
         this.ctx.fillRect(0, 0, this.scaledWidth, this.scaledHeight)
         this.drawBitmap(
           Bitmap.get("logo2"),
-          this.scaledWidth / 2 - Bitmap.get("logo2").width / 2,
-          this.scaledHeight / 2 - Bitmap.get("logo2").height / 1.6
+          this.scaledWidth / 2 - Bitmap.getWidthDp("logo2") / 2,
+          this.scaledHeight / 2 - Bitmap.getHeightDp("logo2") / 1.6,
+          "logo2",
+          0
         )
       }
     } else {
@@ -182,8 +185,22 @@ export class GameView {
     }
   }
 
-  drawBitmap(b: HTMLImageElement, x: number, y: number) {
-    this.ctx.drawImage(b, x, y)
+  drawBitmap(
+    b: HTMLImageElement,
+    x: number,
+    y: number,
+    type?: string,
+    index?: number
+  ) {
+    // If type and index are provided, use getWidthDp/getHeightDp for scaling
+    if (type && typeof index === "number") {
+      const width = Bitmap.getWidthDp(type as any, index)
+      const height = Bitmap.getHeightDp(type as any, index)
+      this.ctx.drawImage(b, x, y, width, height)
+    } else {
+      // fallback: draw at natural size
+      this.ctx.drawImage(b, x, y)
+    }
   }
 
   _dovV() {
@@ -288,10 +305,13 @@ export class GameView {
     if (GameView.m_VI > 0x38000) GameView.m_VI = 0
     this.setColor(0, 0, 0)
     this._aIIIV(j, k, j, k + 32)
+    const startFlag = this.startFlagIndexes[GameView.m_VI >> 16]
     this.drawBitmap(
-      Bitmap.get("flags", this.startFlagIndexes[GameView.m_VI >> 16]),
+      Bitmap.get("flags", startFlag),
       this.offsetX(j),
-      this.offsetY(k) - 32
+      this.offsetY(k) - 32,
+      "flags",
+      startFlag
     )
   }
 
@@ -299,10 +319,14 @@ export class GameView {
     if (GameView.m_VI > 0x38000) GameView.m_VI = 0
     this.setColor(0, 0, 0)
     this._aIIIV(j, k, j, k + 32)
+    const finishFlag = this.finishFlagIndexes[GameView.m_VI >> 16]
+
     this.drawBitmap(
-      Bitmap.get("flags", this.finishFlagIndexes[GameView.m_VI >> 16]),
+      Bitmap.get("flags", finishFlag),
       this.offsetX(j),
-      this.offsetY(k) - 32
+      this.offsetY(k) - 32,
+      "flags",
+      finishFlag
     )
   }
 
@@ -311,10 +335,10 @@ export class GameView {
     if (l == 1) wheel = 0 // small
     else wheel = 1 // big
 
-    let x = this.offsetX(j - Bitmap.get("wheels", wheel).width / 2)
-    let y = this.offsetY(k + Bitmap.get("wheels", wheel).height / 2)
+    let x = this.offsetX(j - Bitmap.getWidthDp("wheels", wheel) / 2)
+    let y = this.offsetY(k + Bitmap.getHeightDp("wheels", wheel) / 2)
 
-    this.drawBitmap(Bitmap.get("wheels", 1), x, y)
+    this.drawBitmap(Bitmap.get("wheels", wheel), x, y, "wheels", wheel)
   }
 
   private resetPressedKeys() {
@@ -333,7 +357,12 @@ export class GameView {
     let j1 = this.offsetX(j - l)
     let k1 = this.offsetY(k + l)
     let l1 = l << 1
-    if ((i1 = -(((((i1 * 0xb40000) >> 16) << 32) / 0x3243f) >> 16)) < 0)
+    // Use BigInt to emulate 64-bit fixed-point division in angle conversion
+    if (
+      (i1 = -Number(
+        ((BigInt((i1 * 0xb40000) >> 16) << 32n) / BigInt(0x3243f)) >> 16n
+      )) < 0
+    )
       i1 += 360
     //paint.setStyle(Paint.Style.STROKE);
     //canvas.drawArc(new RectF(j1, k1, j1 + l1, k1 + l1), -((i1 >> 16) + 170), -90, false, paint);
@@ -358,34 +387,56 @@ export class GameView {
   }
 
   public drawSteering(j: number, k: number) {
-    let x = this.offsetX(j - Bitmap.get("steering").width / 2)
-    let y = this.offsetY(k + Bitmap.get("steering").height / 2)
+    let x = this.offsetX(j - Bitmap.getWidthDp("steering") / 2)
+    let y = this.offsetY(k + Bitmap.getHeightDp("steering") / 2)
 
-    this.drawBitmap(Bitmap.get("steering"), x, y)
+    this.drawBitmap(Bitmap.get("steering"), x, y, "steering", 0)
   }
   public drawFender(j: number, k: number, l: number) {
     let fAngleDeg = (l / 0xffff / Math.PI) * 180 - 180 + 15
     if (fAngleDeg >= 360) fAngleDeg -= 360
-    return
-    // if (Bitmap.get(Bitmap.FENDER) != null) {
-    // 	float x = offsetX(j) - Bitmap.get(Bitmap.FENDER).getWidthDp() / 2;
-    // 	float y = offsetY(k) - Bitmap.get(Bitmap.FENDER).getHeightDp() / 2;
-
-    // 	canvas.save();
-    // 	canvas.rotate(fAngleDeg, x + Bitmap.get(Bitmap.FENDER).getWidthDp() / 2, y + Bitmap.get(Bitmap.FENDER).getHeightDp() / 2);
-    // 	drawBitmap(Bitmap.get(Bitmap.FENDER), x, y);
-    // 	canvas.restore();
-    // }
+    const width = Bitmap.getWidthDp("fender", 0)
+    const height = Bitmap.getHeightDp("fender", 0)
+    const x = this.offsetX(j) - width / 2
+    const y = this.offsetY(k) - height / 2
+    const img = Bitmap.get("fender", 0)
+    this.ctx.save()
+    this.ctx.translate(x + width / 2, y + height / 2)
+    this.ctx.rotate((fAngleDeg * Math.PI) / 180)
+    this.ctx.translate(-width / 2, -height / 2)
+    this.drawBitmap(img, 0, 0, "fender", 0)
+    this.ctx.restore()
   }
+  // if (Bitmap.get(Bitmap.FENDER) != null) {
+  // 	float x = offsetX(j) - Bitmap.get(Bitmap.FENDER).getWidthDp() / 2;
+  // 	float y = offsetY(k) - Bitmap.get(Bitmap.FENDER).getHeightDp() / 2;
+
+  // 	canvas.save();
+  // 	canvas.rotate(fAngleDeg, x + Bitmap.get(Bitmap.FENDER).getWidthDp() / 2, y + Bitmap.get(Bitmap.FENDER).getHeightDp() / 2);
+  // 	drawBitmap(Bitmap.get(Bitmap.FENDER), x, y);
+  // 	canvas.restore();
+  // }
   public drawEngine(j: number, k: number, l: number) {
-    // float fAngleDeg = (float) (l / (float) 0xFFFF / Math.PI * 180) - 180;
-    // float x = offsetX(j) - Bitmap.get(Bitmap.ENGINE).getWidthDp() / 2;
-    // float y = offsetY(k) - Bitmap.get(Bitmap.ENGINE).getHeightDp() / 2;
-    // if (Bitmap.get(Bitmap.ENGINE) != null) {
-    // 	canvas.save();
-    // 	canvas.rotate(fAngleDeg, x + Bitmap.get(Bitmap.ENGINE).getWidthDp() / 2, y + Bitmap.get(Bitmap.ENGINE).getHeightDp() / 2);
-    // 	drawBitmap(Bitmap.get(Bitmap.ENGINE), x, y);
-    // 	canvas.restore();
-    // }
+    // const angle = (l / 0xffff / Math.PI) * 180 - 180
+    // const width = Bitmap.getWidthDp("engine", 0)
+    // const height = Bitmap.getHeightDp("engine", 0)
+    // const offsetX = this.offsetX(j) - width / 2
+    // const offsetY = this.offsetY(k) - height / 2
+    // const img = Bitmap.get("engine", 0)
+    // this.ctx.save()
+    // this.ctx.translate(offsetX + width / 2, offsetY + height / 2)
+    // this.ctx.rotate((angle * Math.PI) / 180)
+    // this.ctx.translate(-width / 2, -height / 2)
+    // this.drawBitmap(img, 0, 0, "engine", 0)
+    // this.ctx.restore()
+    // // float fAngleDeg = (float) (l / (float) 0xFFFF / Math.PI * 180) - 180;
+    // // float x = offsetX(j) - Bitmap.get(Bitmap.ENGINE).getWidthDp() / 2;
+    // // float y = offsetY(k) - Bitmap.get(Bitmap.ENGINE).getHeightDp() / 2;
+    // // if (Bitmap.get(Bitmap.ENGINE) != null) {
+    // // 	canvas.save();
+    // // 	canvas.rotate(fAngleDeg, x + Bitmap.get(Bitmap.ENGINE).getWidthDp() / 2, y + Bitmap.get(Bitmap.ENGINE).getHeightDp() / 2);
+    // // 	drawBitmap(Bitmap.get(Bitmap.ENGINE), x, y);
+    // // 	canvas.restore();
+    // // }
   }
 }

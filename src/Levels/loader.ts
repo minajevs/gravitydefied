@@ -38,15 +38,14 @@ export class Loader {
     this.m_fI = -1
     this.names = init2Array(3, 0)
     this.m_daI = 0
+    // Initialize last surface normal to 0 to avoid nulls before first contact
+    this.m_eI = 0
+    this.m_dI = 0
     for (let j = 0; j < 3; j++) {
-      this.m_haI[j] =
-        (((Physics.m_foraI[j] + 19660) >> 1) *
-          ((Physics.m_foraI[j] + 19660) >> 1)) >>
-        16
-      this.m_vaI[j] =
-        (((Physics.m_foraI[j] - 19660) >> 1) *
-          ((Physics.m_foraI[j] - 19660) >> 1)) >>
-        16
+      const a = Number(BigInt(Physics.m_foraI[j] + 19660) >> 1n)
+      const b = Number(BigInt(Physics.m_foraI[j] - 19660) >> 1n)
+      this.m_haI[j] = Number((BigInt(a) * BigInt(a)) >> 16n)
+      this.m_vaI[j] = Number((BigInt(b) * BigInt(b)) >> 16n)
     }
 
     // try {
@@ -123,7 +122,7 @@ export class Loader {
   }
 
   _aII(j: number) {
-    return this.levels._doII(j >> 1)
+    return this.levels._doII(Number(BigInt(j) >> 1n))
   }
 
   load(l1: Level) {
@@ -181,8 +180,8 @@ export class Loader {
   _aiIV(j: GameView, k: number, i1: number) {
     if (j != null) {
       j.setColor(0, 170, 0)
-      k >>= 1
-      i1 >>= 1
+      k = Number(BigInt(k) >> 1n)
+      i1 = Number(BigInt(i1) >> 1n)
       this.levels._aiIV(j, k, i1)
     }
   }
@@ -193,9 +192,13 @@ export class Loader {
   }
 
   _aIIV(j: number, k: number, i1: number) {
-    this.levels._aIIV2((j + 0x18000) >> 1, (k - 0x18000) >> 1, i1 >> 1)
-    k >>= 1
-    j >>= 1
+    this.levels._aIIV2(
+      Number((BigInt(j) + 0x18000n) >> 1n),
+      Number((BigInt(k) - 0x18000n) >> 1n),
+      Number(BigInt(i1) >> 1n)
+    )
+    k = Number(BigInt(k) >> 1n)
+    j = Number(BigInt(j) >> 1n)
     this.m_faI =
       this.m_faI >= this.levels.pointsCount - 1
         ? this.levels.pointsCount - 1
@@ -227,8 +230,8 @@ export class Loader {
   _anvI(n1: SimpleMenuElement, j: number) {
     let k3 = 0
     let byte1 = 2
-    let l3 = n1.x >> 1
-    let i4 = n1.y >> 1
+    let l3 = Number(BigInt(n1.x) >> 1n)
+    let i4 = Number(BigInt(n1.y) >> 1n)
     if (this.perspectiveEnabled) i4 -= 0x10000
     let j4 = 0
     let k4 = 0
@@ -241,39 +244,43 @@ export class Loader {
       if (l3 - this.m_haI[j] > j1 || l3 + this.m_haI[j] < k) continue
       let l1 = k - j1
       let i2 = i1 - k1
-      let j2 = ((l1 * l1) >> 16) + ((i2 * i2) >> 16)
-      let k2 = (((l3 - k) * -l1) >> 16) + (((i4 - i1) * -i2) >> 16)
+      let j2 =
+        Number((BigInt(l1) * BigInt(l1)) >> 16n) +
+        Number((BigInt(i2) * BigInt(i2)) >> 16n)
+      let k2 =
+        Number((BigInt(l3 - k) * BigInt(-l1)) >> 16n) +
+        Number((BigInt(i4 - i1) * BigInt(-i2)) >> 16n)
       let l2
-      if ((j2 >= 0 ? j2 : -j2) >= 3) l2 = ((k2 << 32) / j2) >> 16
+      if ((j2 >= 0 ? j2 : -j2) >= 3)
+        l2 = Number(((BigInt(k2) << 32n) / BigInt(j2)) >> 16n)
       else l2 = (k2 <= 0 ? -1 : 1) * (j2 <= 0 ? -1 : 1) * 0x7fffffff
       if (l2 < 0) l2 = 0
       if (l2 > 0x10000) l2 = 0x10000
-      let i3 = k + ((l2 * -l1) >> 16)
-      let j3 = i1 + ((l2 * -i2) >> 16)
+      let i3 = k + Number((BigInt(l2) * BigInt(-l1)) >> 16n)
+      let j3 = i1 + Number((BigInt(l2) * BigInt(-i2)) >> 16n)
       l1 = l3 - i3
       i2 = i4 - j3
       let byte0: number
       let l5
-      if ((l5 = ((l1 * l1) >> 16) + ((i2 * i2) >> 16)) < this.m_haI[j]) {
+      if (
+        (l5 =
+          Number((BigInt(l1) * BigInt(l1)) >> 16n) +
+          Number((BigInt(i2) * BigInt(i2)) >> 16n)) < this.m_haI[j]
+      ) {
         if (l5 >= this.m_vaI[j]) byte0 = 1
         else byte0 = 0
       } else {
         byte0 = 2
       }
-      if (
-        byte0 == 0 &&
-        ((this.m_saaI![l4][0] * n1.m_eI) >> 16) +
-          ((this.m_saaI![l4][1] * n1.m_dI) >> 16) <
-          0
-      ) {
+      if (byte0 == 0) {
         this.m_eI = this.m_saaI![l4][0]
         this.m_dI = this.m_saaI![l4][1]
-        return 0
+        return 1
       }
       if (
         byte0 != 1 ||
-        ((this.m_saaI![l4][0] * n1.m_eI) >> 16) +
-          ((this.m_saaI![l4][1] * n1.m_dI) >> 16) >=
+        Number((BigInt(this.m_saaI![l4][0]) * BigInt(n1.m_eI)) >> 16n) +
+          Number((BigInt(this.m_saaI![l4][1]) * BigInt(n1.m_dI)) >> 16n) >=
           0
       )
         continue
@@ -289,7 +296,10 @@ export class Loader {
     }
 
     if (byte1 === 1) {
-      if (((j4 * n1.m_eI) >> 16) + ((k4 * n1.m_dI) >> 16) >= 0) return 2
+      const dot =
+        Number((BigInt(j4) * BigInt(n1.m_eI)) >> 16n) +
+        Number((BigInt(k4) * BigInt(n1.m_dI)) >> 16n)
+      if (dot >= 0) return 2
       this.m_eI = j4
       this.m_dI = k4
     }

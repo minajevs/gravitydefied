@@ -5,6 +5,7 @@ type BitmapType =
   | "flags"
   | "steering"
   | "wheels"
+  | "engine"
   | "fender"
 
 const images = {
@@ -22,6 +23,7 @@ const images = {
   steering: [new Image()],
   wheels: [new Image(), new Image()],
   fender: [new Image()],
+  engine: [new Image()],
 } satisfies Record<BitmapType, HTMLImageElement[]>
 
 const assets = {
@@ -39,6 +41,7 @@ const assets = {
   steering: ["s_steering"],
   wheels: ["s_wheel1", "s_wheel2"],
   fender: ["s_fender"],
+  engine: ["s_engine"],
 } satisfies Record<BitmapType, string[]>
 
 ;(Object.entries(images) as [BitmapType, [HTMLImageElement]][]).map(
@@ -54,6 +57,17 @@ const assets = {
 )
 
 export class Bitmap {
+  // Returns device-independent width for a given bitmap type/index
+  static getWidthDp(type: BitmapType, arrayIndex: number = 0): number {
+    const img = images[type][arrayIndex]
+    return img.width / window.devicePixelRatio
+  }
+
+  // Returns device-independent height for a given bitmap type/index
+  static getHeightDp(type: BitmapType, arrayIndex: number = 0): number {
+    const img = images[type][arrayIndex]
+    return img.height / window.devicePixelRatio
+  }
   static get(type: BitmapType, arrayIndex: number = 0) {
     const holder = images[type]
 

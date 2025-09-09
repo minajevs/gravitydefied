@@ -48,10 +48,46 @@ const init = () => {
   window.requestAnimationFrame(draw)
 }
 
+let gameState = "playing" // "playing", "crashed", "finished", etc.
+let crashTimer = 0
+let finishTimer = 0
+
 const draw = (frame: number) => {
-  window.requestAnimationFrame(draw)
+  if (gameView.showIntro === 0) {
+    // Update physics and game logic only after intros finish.
+    physEngine._doIV(1) // neutral input
+    const k = physEngine._dovI()
+
+    // Only act on real crash (3) and win (1/2). Ignore 4/5.
+    if (k === 3 && gameState !== "crashed") {
+      gameState = "crashed"
+      crashTimer = Date.now() + 3000
+    } else if ((k === 1 || k === 2) && gameState !== "win") {
+      gameState = "win"
+      finishTimer = Date.now() + 1000
+    }
+
+    // Handle timers for crash/finish/win
+    if (gameState === "crashed" && Date.now() > crashTimer) {
+      physEngine._doZV(true)
+      gameState = "playing"
+    }
+    if (
+      (gameState === "finished" || gameState === "win") &&
+      Date.now() > finishTimer
+    ) {
+      physEngine._doZV(true)
+      gameState = "playing"
+    }
+
+    physEngine._charvV()
+    console.log(
+      `State: ${gameState}, k=${k}, pos=(${physEngine._ifvI()},${physEngine._elsevI()})`
+    )
+  }
 
   gameView.onDraw()
+  window.requestAnimationFrame(draw)
 }
 
 // START GAME INIT
@@ -60,7 +96,10 @@ const gameView = new GameView(canvas)
 
 const loader = new Loader()
 await loader.reset()
+// Disable perspective until physics is stable; re-enable later.
+loader.setPerspectiveEnabled(false)
 
+console.log(loader.levels)
 const physEngine = new Physics(loader)
 gameView.setPhysicsEngine(physEngine)
 
@@ -87,17 +126,4 @@ gameView.setShowIntro(0)
 // levels._aiV(j);
 
 console.log("start main loop")
-let frameStart = 0
-let frameEnd = 0
-// while alive
-while (true) {
-  physEngine._doIV(1)
-  physEngine._charvV()
-
-  if ((frameEnd = Date.now()) - frameStart < 30) {
-    await wait(Math.max(30 - (frameEnd - frameStart), 1))
-    frameStart = Date.now()
-  } else {
-    frameStart = frameEnd
-  }
-}
+// The main loop is now handled by requestAnimationFrame in draw()
