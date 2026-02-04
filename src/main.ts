@@ -51,33 +51,48 @@ const init = () => {
 let gameState = "playing" // "playing", "crashed", "finished", etc.
 let crashTimer = 0
 let finishTimer = 0
+const PHYS_STEPS_PER_TICK = 2
+const PHYS_TICK_MS = 30
+let lastFrameTime = performance.now()
+let physAccumulator = 0
 
 const draw = (frame: number) => {
+  const now = performance.now()
+  const dt = now - lastFrameTime
+  lastFrameTime = now
+  physAccumulator += dt
+
   if (gameView.showIntro === 0) {
     // Update physics and game logic only after intros finish.
-    physEngine._doIV(1) // neutral input
-    const k = physEngine._dovI()
+    let k = 0
+    while (physAccumulator >= PHYS_TICK_MS) {
+      physAccumulator -= PHYS_TICK_MS
+      physEngine._doIV(1) // neutral input
+      for (let step = 0; step < PHYS_STEPS_PER_TICK; step++) {
+        k = physEngine._dovI()
 
-    // Only act on real crash (3) and win (1/2). Ignore 4/5.
-    if (k === 3 && gameState !== "crashed") {
-      gameState = "crashed"
-      crashTimer = Date.now() + 3000
-    } else if ((k === 1 || k === 2) && gameState !== "win") {
-      gameState = "win"
-      finishTimer = Date.now() + 1000
-    }
+        // Only act on real crash (3) and win (1/2). Ignore 4/5.
+        if (k === 3 && gameState !== "crashed") {
+          gameState = "crashed"
+          crashTimer = Date.now() + 3000
+        } else if ((k === 1 || k === 2) && gameState !== "win") {
+          gameState = "win"
+          finishTimer = Date.now() + 1000
+        }
 
-    // Handle timers for crash/finish/win
-    if (gameState === "crashed" && Date.now() > crashTimer) {
-      physEngine._doZV(true)
-      gameState = "playing"
-    }
-    if (
-      (gameState === "finished" || gameState === "win") &&
-      Date.now() > finishTimer
-    ) {
-      physEngine._doZV(true)
-      gameState = "playing"
+        // Handle timers for crash/finish/win
+        if (gameState === "crashed" && Date.now() > crashTimer) {
+          physEngine._doZV(true)
+          gameState = "playing"
+        }
+        if (
+          (gameState === "finished" || gameState === "win") &&
+          Date.now() > finishTimer
+        ) {
+          physEngine._doZV(true)
+          gameState = "playing"
+        }
+      }
     }
 
     physEngine._charvV()

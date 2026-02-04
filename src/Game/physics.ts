@@ -139,12 +139,31 @@ export class Physics {
   leftWheelLastUpdated = 0
   leftWheelParams: number[][]
   private _dbgC = 0
+  private _dbgInvalidLogged = false
+  private _dbgContactLogged = false
+  private _dbgCrashLogged = false
+  private _dbgRestWheelDist: number | null = null
+  private _dbgContactNodes: boolean[] = []
+  private _dbgRatioMarks: Record<number, boolean> = {}
   // True after either wheel has made terrain contact in current run
   private m_hadContact: boolean
   // Counts consecutive out-of-bounds wheel-span checks after contact
   private m_crashOutCount: number = 0
   private static toSigned(n: number): number {
     return n > 0x7fffffff ? n - 0x100000000 : n
+  }
+
+  private static i32(n: number): number {
+    return n | 0
+  }
+
+  private static mulShift16(a: number, b: number): number {
+    return (Number((BigInt(a) * BigInt(b)) >> 16n) | 0)
+  }
+
+  private static divShift16(a: number, b: number): number {
+    if (b === 0) return 0
+    return (Number(((BigInt(a) << 32n) / BigInt(b)) >> 16n) | 0)
   }
   private fixSignedTables() {
     const tables: number[][][] = [
@@ -325,6 +344,7 @@ export class Physics {
   _doZV(flag: boolean) {
     this.m_tI = 0
     this._iIIV(this.m_lf._newvI(), this.m_lf._avI())
+    this._dbgRestWheelDist = this._dbgWheelDistSq()
     this.m_cI = 0
     this.m_kI = 0
     this.m_IZ = false
@@ -336,6 +356,11 @@ export class Physics {
     this.m_afZ = false
     this.m_hadContact = false
     this.m_crashOutCount = 0
+    this._dbgInvalidLogged = false
+    this._dbgContactLogged = false
+    this._dbgCrashLogged = false
+    this._dbgContactNodes = []
+    this._dbgRatioMarks = {}
     this.m_lf.levels._aIIV(
       this.m_Hak[2].m_ifan[5].x + 0x18000 - Physics.m_foraI[0],
       this.m_Hak[1].m_ifan[5].x - 0x18000 + Physics.m_foraI[0]
@@ -403,9 +428,10 @@ export class Physics {
       this.m_Hak[j1].m_aI = Physics.m_foraI[i2]
       this.m_Hak[j1].m_intI = i2
       // Use BigInt for fixed-point math
-      this.m_Hak[j1].m_forI = Number(
-        (((0x1000000000000n / BigInt(l1)) >> 16n) * BigInt(Physics.m_yI)) >> 16n
+      const base = Physics.i32(
+        Number((0x1000000000000n / BigInt(l1)) >> 16n)
       )
+      this.m_Hak[j1].m_forI = Physics.mulShift16(base, Physics.m_yI)
       this.m_Hak[j1].m_ifan[this.m_vaI].x = j + j2
       this.m_Hak[j1].m_ifan[this.m_vaI].y = i1 + k2
       this.m_Hak[j1].m_ifan[5].x = j + j2
@@ -485,7 +511,7 @@ export class Physics {
     // Use BigInt to emulate 64-bit fixed-point division
     // let _tmp =  (( j << 32) /  j1 >> 16)
     // const tmp = Number(((BigInt(j) << 32n) / BigInt(j1)) >> 16n)
-    i1 = Number(((BigInt(i1) << 32n) / BigInt(j1)) >> 16n)
+    i1 = Physics.divShift16(i1, j1)
     // let i1 =  (( i1 << 32) /  j1 >> 16)
     this.m_FZ = false
     if (i1 < 0) {
@@ -528,22 +554,21 @@ export class Physics {
         this.m_Hak[1].m_ifan[this.m_vaI].y - this.m_Hak[2].m_ifan[this.m_vaI].y
       let j1 = Physics._doIII(j, i1)
       // Use BigInt to emulate 64-bit fixed-point division
-      j = Number(((BigInt(j) << 32n) / BigInt(j1)) >> 16n)
+      j = Physics.divShift16(j, j1)
       // let j =  (( j << 32) /  j1 >> 16)
-      i1 = Number(((BigInt(i1) << 32n) / BigInt(j1)) >> 16n)
+      i1 = Physics.divShift16(i1, j1)
       // let i1 =  (( i1 << 32) /  j1 >> 16)
-      if (this.m_dZ && this.m_cI >= -Physics.m_QI) this.m_cI -= Physics.m_charI
+      if (this.m_dZ && this.m_cI >= -Physics.m_QI)
+        this.m_cI = Physics.i32(this.m_cI - Physics.m_charI)
       if (this.m_FZ) {
         this.m_cI = 0
-        this.m_Hak[1].m_ifan[this.m_vaI].m_gotoI = Number(
-          (BigInt(this.m_Hak[1].m_ifan[this.m_vaI].m_gotoI) *
-            BigInt(0x10000 - Physics.m_abI)) >>
-            16n
+        this.m_Hak[1].m_ifan[this.m_vaI].m_gotoI = Physics.mulShift16(
+          this.m_Hak[1].m_ifan[this.m_vaI].m_gotoI,
+          0x10000 - Physics.m_abI
         )
-        this.m_Hak[2].m_ifan[this.m_vaI].m_gotoI = Number(
-          (BigInt(this.m_Hak[2].m_ifan[this.m_vaI].m_gotoI) *
-            BigInt(0x10000 - Physics.m_abI)) >>
-            16n
+        this.m_Hak[2].m_ifan[this.m_vaI].m_gotoI = Physics.mulShift16(
+          this.m_Hak[2].m_ifan[this.m_vaI].m_gotoI,
+          0x10000 - Physics.m_abI
         )
         if (this.m_Hak[1].m_ifan[this.m_vaI].m_gotoI < 6553)
           this.m_Hak[1].m_ifan[this.m_vaI].m_gotoI = 0
@@ -551,59 +576,25 @@ export class Physics {
           this.m_Hak[2].m_ifan[this.m_vaI].m_gotoI = 0
       }
       // Use BigInt for fixed-point multiplications
-      this.m_Hak[0].m_forI = Number(
-        (BigInt(11915) * BigInt(Physics.m_yI)) >> 16n
-      )
-      this.m_Hak[0].m_forI = Number(
-        (BigInt(11915) * BigInt(Physics.m_yI)) >> 16n
-      )
-      this.m_Hak[4].m_forI = Number(
-        (BigInt(18724) * BigInt(Physics.m_yI)) >> 16n
-      )
-      this.m_Hak[3].m_forI = Number(
-        (BigInt(18724) * BigInt(Physics.m_yI)) >> 16n
-      )
-      this.m_Hak[1].m_forI = Number(
-        (BigInt(43690) * BigInt(Physics.m_yI)) >> 16n
-      )
-      this.m_Hak[2].m_forI = Number(
-        (BigInt(11915) * BigInt(Physics.m_yI)) >> 16n
-      )
-      this.m_Hak[5].m_forI = Number(
-        (BigInt(14563) * BigInt(Physics.m_yI)) >> 16n
-      )
+      this.m_Hak[0].m_forI = Physics.mulShift16(11915, Physics.m_yI)
+      this.m_Hak[0].m_forI = Physics.mulShift16(11915, Physics.m_yI)
+      this.m_Hak[4].m_forI = Physics.mulShift16(18724, Physics.m_yI)
+      this.m_Hak[3].m_forI = Physics.mulShift16(18724, Physics.m_yI)
+      this.m_Hak[1].m_forI = Physics.mulShift16(43690, Physics.m_yI)
+      this.m_Hak[2].m_forI = Physics.mulShift16(11915, Physics.m_yI)
+      this.m_Hak[5].m_forI = Physics.mulShift16(14563, Physics.m_yI)
       if (this.m_XZ) {
-        this.m_Hak[0].m_forI = Number(
-          (BigInt(18724) * BigInt(Physics.m_yI)) >> 16n
-        )
-        this.m_Hak[4].m_forI = Number(
-          (BigInt(14563) * BigInt(Physics.m_yI)) >> 16n
-        )
-        this.m_Hak[3].m_forI = Number(
-          (BigInt(18724) * BigInt(Physics.m_yI)) >> 16n
-        )
-        this.m_Hak[1].m_forI = Number(
-          (BigInt(43690) * BigInt(Physics.m_yI)) >> 16n
-        )
-        this.m_Hak[2].m_forI = Number(
-          (BigInt(10082) * BigInt(Physics.m_yI)) >> 16n
-        )
+        this.m_Hak[0].m_forI = Physics.mulShift16(18724, Physics.m_yI)
+        this.m_Hak[4].m_forI = Physics.mulShift16(14563, Physics.m_yI)
+        this.m_Hak[3].m_forI = Physics.mulShift16(18724, Physics.m_yI)
+        this.m_Hak[1].m_forI = Physics.mulShift16(43690, Physics.m_yI)
+        this.m_Hak[2].m_forI = Physics.mulShift16(10082, Physics.m_yI)
       } else if (this.m_wZ) {
-        this.m_Hak[0].m_forI = Number(
-          (BigInt(18724) * BigInt(Physics.m_yI)) >> 16n
-        )
-        this.m_Hak[4].m_forI = Number(
-          (BigInt(18724) * BigInt(Physics.m_yI)) >> 16n
-        )
-        this.m_Hak[3].m_forI = Number(
-          (BigInt(14563) * BigInt(Physics.m_yI)) >> 16n
-        )
-        this.m_Hak[1].m_forI = Number(
-          (BigInt(26214) * BigInt(Physics.m_yI)) >> 16n
-        )
-        this.m_Hak[2].m_forI = Number(
-          (BigInt(11915) * BigInt(Physics.m_yI)) >> 16n
-        )
+        this.m_Hak[0].m_forI = Physics.mulShift16(18724, Physics.m_yI)
+        this.m_Hak[4].m_forI = Physics.mulShift16(18724, Physics.m_yI)
+        this.m_Hak[3].m_forI = Physics.mulShift16(14563, Physics.m_yI)
+        this.m_Hak[1].m_forI = Physics.mulShift16(26214, Physics.m_yI)
+        this.m_Hak[2].m_forI = Physics.mulShift16(11915, Physics.m_yI)
       }
       if (this.m_XZ || this.m_wZ) {
         let k1 = -i1
@@ -611,52 +602,68 @@ export class Physics {
         if (this.m_XZ && this.m_kI > -Physics.m_longI) {
           let i2 = 0x10000
           if (this.m_kI < 0)
-            i2 = Number(
-              ((BigInt(
-                Physics.m_longI - (this.m_kI >= 0 ? this.m_kI : -this.m_kI)
-              ) <<
-                32n) /
-                BigInt(Physics.m_longI)) >>
-                16n
+            i2 = Physics.divShift16(
+              Physics.m_longI - (this.m_kI >= 0 ? this.m_kI : -this.m_kI),
+              Physics.m_longI
             )
-          let k2 = Number((BigInt(Physics.m_AI) * BigInt(i2)) >> 16n)
-          let i3 = Number((BigInt(k1) * BigInt(k2)) >> 16n)
-          let k3 = Number((BigInt(l1) * BigInt(k2)) >> 16n)
-          let i4 = Number((BigInt(j) * BigInt(k2)) >> 16n)
-          let k4 = Number((BigInt(i1) * BigInt(k2)) >> 16n)
+          let k2 = Physics.mulShift16(Physics.m_AI, i2)
+          let i3 = Physics.mulShift16(k1, k2)
+          let k3 = Physics.mulShift16(l1, k2)
+          let i4 = Physics.mulShift16(j, k2)
+          let k4 = Physics.mulShift16(i1, k2)
           if (this.m_TI > 32768)
             this.m_TI = this.m_TI - 1638 >= 0 ? this.m_TI - 1638 : 0
           else this.m_TI = this.m_TI - 3276 >= 0 ? this.m_TI - 3276 : 0
-          this.m_Hak[4].m_ifan[this.m_vaI].m_eI -= i3
-          this.m_Hak[4].m_ifan[this.m_vaI].m_dI -= k3
-          this.m_Hak[3].m_ifan[this.m_vaI].m_eI += i3
-          this.m_Hak[3].m_ifan[this.m_vaI].m_dI += k3
-          this.m_Hak[5].m_ifan[this.m_vaI].m_eI -= i4
-          this.m_Hak[5].m_ifan[this.m_vaI].m_dI -= k4
+          this.m_Hak[4].m_ifan[this.m_vaI].m_eI = Physics.i32(
+            this.m_Hak[4].m_ifan[this.m_vaI].m_eI - i3
+          )
+          this.m_Hak[4].m_ifan[this.m_vaI].m_dI = Physics.i32(
+            this.m_Hak[4].m_ifan[this.m_vaI].m_dI - k3
+          )
+          this.m_Hak[3].m_ifan[this.m_vaI].m_eI = Physics.i32(
+            this.m_Hak[3].m_ifan[this.m_vaI].m_eI + i3
+          )
+          this.m_Hak[3].m_ifan[this.m_vaI].m_dI = Physics.i32(
+            this.m_Hak[3].m_ifan[this.m_vaI].m_dI + k3
+          )
+          this.m_Hak[5].m_ifan[this.m_vaI].m_eI = Physics.i32(
+            this.m_Hak[5].m_ifan[this.m_vaI].m_eI - i4
+          )
+          this.m_Hak[5].m_ifan[this.m_vaI].m_dI = Physics.i32(
+            this.m_Hak[5].m_ifan[this.m_vaI].m_dI - k4
+          )
         }
         if (this.m_wZ && this.m_kI < Physics.m_longI) {
           let j2 = 0x10000
           if (this.m_kI > 0)
-            j2 = Number(
-              ((BigInt(Physics.m_longI - this.m_kI) << 32n) /
-                BigInt(Physics.m_longI)) >>
-                16n
-            )
-          let l2 = Number((BigInt(Physics.m_AI) * BigInt(j2)) >> 16n)
-          let j3 = Number((BigInt(k1) * BigInt(l2)) >> 16n)
-          let l3 = Number((BigInt(l1) * BigInt(l2)) >> 16n)
-          let j4 = Number((BigInt(j) * BigInt(l2)) >> 16n)
-          let l4 = Number((BigInt(i1) * BigInt(l2)) >> 16n)
+            j2 = Physics.divShift16(Physics.m_longI - this.m_kI, Physics.m_longI)
+          let l2 = Physics.mulShift16(Physics.m_AI, j2)
+          let j3 = Physics.mulShift16(k1, l2)
+          let l3 = Physics.mulShift16(l1, l2)
+          let j4 = Physics.mulShift16(j, l2)
+          let l4 = Physics.mulShift16(i1, l2)
           if (this.m_TI > 32768)
             this.m_TI = this.m_TI + 1638 >= 0x10000 ? 0x10000 : this.m_TI + 1638
           else
             this.m_TI = this.m_TI + 3276 >= 0x10000 ? 0x10000 : this.m_TI + 3276
-          this.m_Hak[4].m_ifan[this.m_vaI].m_eI += j3
-          this.m_Hak[4].m_ifan[this.m_vaI].m_dI += l3
-          this.m_Hak[3].m_ifan[this.m_vaI].m_eI -= j3
-          this.m_Hak[3].m_ifan[this.m_vaI].m_dI -= l3
-          this.m_Hak[5].m_ifan[this.m_vaI].m_eI += j4
-          this.m_Hak[5].m_ifan[this.m_vaI].m_dI += l4
+          this.m_Hak[4].m_ifan[this.m_vaI].m_eI = Physics.i32(
+            this.m_Hak[4].m_ifan[this.m_vaI].m_eI + j3
+          )
+          this.m_Hak[4].m_ifan[this.m_vaI].m_dI = Physics.i32(
+            this.m_Hak[4].m_ifan[this.m_vaI].m_dI + l3
+          )
+          this.m_Hak[3].m_ifan[this.m_vaI].m_eI = Physics.i32(
+            this.m_Hak[3].m_ifan[this.m_vaI].m_eI - j3
+          )
+          this.m_Hak[3].m_ifan[this.m_vaI].m_dI = Physics.i32(
+            this.m_Hak[3].m_ifan[this.m_vaI].m_dI - l3
+          )
+          this.m_Hak[5].m_ifan[this.m_vaI].m_eI = Physics.i32(
+            this.m_Hak[5].m_ifan[this.m_vaI].m_eI + j4
+          )
+          this.m_Hak[5].m_ifan[this.m_vaI].m_dI = Physics.i32(
+            this.m_Hak[5].m_ifan[this.m_vaI].m_dI + l4
+          )
         }
         return
       }
@@ -677,6 +684,7 @@ export class Physics {
     //   this.m_Hak[1].m_ifan[this.m_vaI].x,
     //   this.m_Hak[1].m_ifan[this.m_vaI].y
     // ) position of a bike
+    this._dbgCheckState("pre")
     this.m_dZ = this.m_ifZ
     this.m_FZ = this.m_sZ
     this.m_XZ = this.m_OZ
@@ -686,6 +694,7 @@ export class Physics {
     this._qvV()
     let j: number
     if ((j = this._uII(Physics.m_YI)) == 5 || this.m_mZ) return 5
+    this._dbgCheckState("post_uII")
     if (this.m_IZ) return 3
     if (this._newvZ()) {
       this.m_NZ = false
@@ -693,6 +702,58 @@ export class Physics {
     } else {
       return j
     }
+  }
+
+  private _dbgCheckState(tag: string) {
+    if (this._dbgInvalidLogged) return
+    const issues: string[] = []
+    if (!this.m_Hak || this.m_Hak.length < 6) {
+      issues.push(`m_Hak missing/short: ${this.m_Hak?.length ?? "null"}`)
+    } else {
+      for (let i = 0; i < 6; i++) {
+        const node = this.m_Hak[i]
+        if (!node) {
+          issues.push(`m_Hak[${i}] is null/undefined`)
+          continue
+        }
+        if (!node.m_ifan || node.m_ifan.length < 6) {
+          issues.push(`m_Hak[${i}].m_ifan missing/short`)
+          continue
+        }
+        if (this._dbgC > 0 && (!Number.isFinite(node.m_forI) || node.m_forI === 0)) {
+          issues.push(`m_Hak[${i}].m_forI invalid: ${node.m_forI}`)
+        }
+        for (let j = 0; j < 6; j++) {
+          const p = node.m_ifan[j]
+          if (!p) {
+            issues.push(`m_Hak[${i}].m_ifan[${j}] null/undefined`)
+            continue
+          }
+          if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) {
+            issues.push(`m_Hak[${i}].m_ifan[${j}] pos invalid: ${p.x},${p.y}`)
+          }
+          if (!Number.isFinite(p.m_eI) || !Number.isFinite(p.m_dI)) {
+            issues.push(
+              `m_Hak[${i}].m_ifan[${j}] vel invalid: ${p.m_eI},${p.m_dI}`
+            )
+          }
+        }
+      }
+    }
+    if (issues.length > 0) {
+      this._dbgInvalidLogged = true
+      console.warn("[physics dbg] invalid state", { tag, issues, dbgC: this._dbgC })
+    }
+  }
+
+  private _dbgWheelDistSq(): number {
+    const dx =
+      this.m_Hak[1].m_ifan[this.m_vaI].x - this.m_Hak[2].m_ifan[this.m_vaI].x
+    const dy =
+      this.m_Hak[1].m_ifan[this.m_vaI].y - this.m_Hak[2].m_ifan[this.m_vaI].y
+    const dx2 = Number((BigInt(dx) * BigInt(dx)) >> 16n)
+    const dy2 = Number((BigInt(dy) * BigInt(dy)) >> 16n)
+    return dx2 + dy2
   }
 
   _newvZ() {
@@ -711,12 +772,15 @@ export class Physics {
     let i1 = 0
     let j1 = j
     let j2: number
+    this._dbgRatioProbe("start_uII")
     do {
       if (i1 >= j) break
       this._aaIV(j1 - i1)
+      this._dbgRatioProbe("after_aaIV")
       let k1: number
       if (!flag && this._longvZ()) k1 = 3
       else k1 = this._baII(this.m_waI)
+      this._dbgRatioProbe("after_baII")
       if (!flag && this.m_RZ) return k1 == 3 ? 1 : 2
       if (k1 == 0) {
         if (
@@ -733,6 +797,7 @@ export class Physics {
         if (k1 == 1)
           do {
             this._caIV(this.m_waI)
+            this._dbgRatioProbe("after_caIV")
             j2 = this._baII(this.m_waI)
             i2 = j2
             if (j2 == 0) return 5
@@ -741,6 +806,7 @@ export class Physics {
         j1 = j
         this.m_vaI = this.m_vaI != 1 ? 1 : 0
         this.m_waI = this.m_waI != 1 ? 1 : 0
+        this._dbgRatioProbe("after_swap")
       }
     } while (true)
     // Compute squared distance between wheel anchors using 64-bit fixed math
@@ -761,6 +827,21 @@ export class Physics {
       // Require sustained out-of-bounds for a short period to avoid spurious crashes
       if (this.m_crashOutCount > 120) this.m_IZ = true
     }
+    if (this.m_IZ && !this._dbgCrashLogged) {
+      this._dbgCrashLogged = true
+      const rest = this._dbgRestWheelDist
+      const ratio = rest ? Number((BigInt(l1) * 1000n) / BigInt(rest)) / 1000 : null
+      console.warn("[physics dbg] crash flagged", {
+        dx,
+        dy,
+        l1,
+        rest,
+        ratio,
+        hadContact: this.m_hadContact,
+        crashOutCount: this.m_crashOutCount,
+        dbgC: this._dbgC,
+      })
+    }
     if (this._dbgC < 100 && this.m_IZ) {
       console.log(
         `[crashCheck] dx=${dx} dy=${dy} l1=${l1} below=${l1 < 0x0f0000} above=${
@@ -768,7 +849,27 @@ export class Physics {
         }`
       )
     }
+    this._dbgRatioProbe("end_uII")
     return 0
+  }
+
+  private _dbgRatioProbe(stage: string) {
+    if (this._dbgRestWheelDist === null) return
+    const curr = this._dbgWheelDistSq()
+    const ratio = Number((BigInt(curr) * 1000n) / BigInt(this._dbgRestWheelDist)) / 1000
+    const thresholds = [1.2, 1.5, 2.0]
+    for (const t of thresholds) {
+      if (ratio >= t && !this._dbgRatioMarks[t]) {
+        this._dbgRatioMarks[t] = true
+        console.warn("[physics dbg] ratio crossed", {
+          stage,
+          ratio,
+          curr,
+          rest: this._dbgRestWheelDist,
+          dbgC: this._dbgC,
+        })
+      }
+    }
   }
 
   _aIV(j: number) {
@@ -778,9 +879,8 @@ export class Physics {
       ;(n1 = (k1 = this.m_Hak[i1]).m_ifan[j]).m_nullI = 0
       n1.m_longI = 0
       n1.m_fI = 0
-      // Use BigInt for fixed-point math
-      n1.m_longI -= Number(
-        ((BigInt(Physics.m_voidI) << 32n) / BigInt(k1.m_forI)) >> 16n
+      n1.m_longI = Physics.i32(
+        n1.m_longI - Physics.divShift16(Physics.m_voidI, k1.m_forI)
       )
     }
 
@@ -797,33 +897,31 @@ export class Physics {
     this._akkV(this.m_Hak[5], this.m_ian[7], this.m_Hak[4], j, 0x10000)
     this._akkV(this.m_Hak[5], this.m_ian[9], this.m_Hak[0], j, 0x10000)
     let n2 = this.m_Hak[2].m_ifan[j]
-    this.m_cI = Number(
-      (BigInt(this.m_cI) * BigInt(0x10000 - Physics.m_jI)) >> 16n
-    )
+    this.m_cI = Physics.mulShift16(this.m_cI, 0x10000 - Physics.m_jI)
     n2.m_fI = this.m_cI
     if (n2.m_gotoI > Physics.m_PI) n2.m_gotoI = Physics.m_PI
     if (n2.m_gotoI < -Physics.m_PI) n2.m_gotoI = -Physics.m_PI
     let j1 = 0
     let l1 = 0
     for (let i2 = 0; i2 < 6; i2++) {
-      j1 += this.m_Hak[i2].m_ifan[j].m_eI
-      l1 += this.m_Hak[i2].m_ifan[j].m_dI
+      j1 = Physics.i32(j1 + this.m_Hak[i2].m_ifan[j].m_eI)
+      l1 = Physics.i32(l1 + this.m_Hak[i2].m_ifan[j].m_dI)
     }
 
-    j1 = Number(((BigInt(j1) << 32n) / 0x60000n) >> 16n)
-    l1 = Number(((BigInt(l1) << 32n) / 0x60000n) >> 16n)
+    j1 = Physics.divShift16(j1, 0x60000)
+    l1 = Physics.divShift16(l1, 0x60000)
     let j3 = 0
     for (let k3 = 0; k3 < 6; k3++) {
       let j2 = this.m_Hak[k3].m_ifan[j].m_eI - j1
       let k2 = this.m_Hak[k3].m_ifan[j].m_dI - l1
       if ((j3 = Physics._doIII(j2, k2)) > 0x1e0000) {
-        let l2 = Number(((BigInt(j2) << 32n) / BigInt(j3)) >> 16n)
-        let i3 = Number(((BigInt(k2) << 32n) / BigInt(j3)) >> 16n)
-        this.m_Hak[k3].m_ifan[j].m_eI = Number(
-          BigInt(this.m_Hak[k3].m_ifan[j].m_eI) - BigInt(l2)
+        let l2 = Physics.divShift16(j2, j3)
+        let i3 = Physics.divShift16(k2, j3)
+        this.m_Hak[k3].m_ifan[j].m_eI = Physics.i32(
+          this.m_Hak[k3].m_ifan[j].m_eI - l2
         )
-        this.m_Hak[k3].m_ifan[j].m_dI = Number(
-          BigInt(this.m_Hak[k3].m_ifan[j].m_dI) - BigInt(i3)
+        this.m_Hak[k3].m_ifan[j].m_dI = Physics.i32(
+          this.m_Hak[k3].m_ifan[j].m_dI - i3
         )
       }
     }
@@ -849,22 +947,23 @@ export class Physics {
     let i2
     if (((i2 = Physics._doIII(j1, l1)) >= 0 ? i2 : -i2) >= 3) {
       // Use BigInt for fixed-point math
-      const j1b = Number(((BigInt(j1) << 32n) / BigInt(i2)) >> 16n)
-      const l1b = Number(((BigInt(l1) << 32n) / BigInt(i2)) >> 16n)
-      let j2 = i2 - n1.y
-      let l2 = Number((BigInt(j1b) * BigInt((j2 * n1.x) >> 16)) >> 16n)
-      let i3 = Number((BigInt(l1b) * BigInt((j2 * n1.x) >> 16)) >> 16n)
-      let j3 = n2.m_eI - n3.m_eI
-      let k3 = n2.m_dI - n3.m_dI
-      // Project relative velocity along the constraint axis using 64-bit fixed math
-      const tproj =
-        ((BigInt(j1b) * BigInt(j3)) >> 16n) +
-        ((BigInt(l1b) * BigInt(k3)) >> 16n)
-      let l3 = Number((tproj * BigInt(n1.m_bI)) >> 16n)
-      l2 += Number((BigInt(j1b) * BigInt(l3)) >> 16n)
-      i3 += Number((BigInt(l1b) * BigInt(l3)) >> 16n)
-      l2 = Number((BigInt(l2) * BigInt(i1)) >> 16n)
-      i3 = Number((BigInt(i3) * BigInt(i1)) >> 16n)
+      const j1b = Number(((BigInt(j1) << 32n) / BigInt(i2)) >> 16n) | 0
+      const l1b = Number(((BigInt(l1) << 32n) / BigInt(i2)) >> 16n) | 0
+      let j2 = (i2 - n1.y) | 0
+      const j2nx = Physics.mulShift16(j2, n1.x)
+      let l2 = Number((BigInt(j1b) * BigInt(j2nx)) >> 16n) | 0
+      let i3 = Number((BigInt(l1b) * BigInt(j2nx)) >> 16n) | 0
+      let j3 = (n2.m_eI - n3.m_eI) | 0
+      let k3 = (n2.m_dI - n3.m_dI) | 0
+      // Project relative velocity along the constraint axis (match Java int overflow)
+      const proj = Physics.i32(
+        Physics.mulShift16(j1b, j3) + Physics.mulShift16(l1b, k3)
+      )
+      let l3 = Physics.mulShift16(proj, n1.m_bI)
+      l2 = (l2 + Number((BigInt(j1b) * BigInt(l3)) >> 16n)) | 0
+      i3 = (i3 + Number((BigInt(l1b) * BigInt(l3)) >> 16n)) | 0
+      l2 = Number((BigInt(l2) * BigInt(i1)) >> 16n) | 0
+      i3 = Number((BigInt(i3) * BigInt(i1)) >> 16n) | 0
       n2.m_nullI -= l2
       n2.m_longI -= i3
       n3.m_nullI += l2
@@ -876,13 +975,11 @@ export class Physics {
     for (let l1 = 0; l1 < 6; l1++) {
       let n1 = this.m_Hak[l1].m_ifan[j]
       let n2: SimpleMenuElement
-      ;(n2 = this.m_Hak[l1].m_ifan[i1]).x = Number(
-        (BigInt(n1.m_eI) * BigInt(j1)) >> 16n
-      )
-      n2.y = Number((BigInt(n1.m_dI) * BigInt(j1)) >> 16n)
-      let k1 = Number((BigInt(j1) * BigInt(this.m_Hak[l1].m_forI)) >> 16n)
-      n2.m_eI = Number((BigInt(n1.m_nullI) * BigInt(k1)) >> 16n)
-      n2.m_dI = Number((BigInt(n1.m_longI) * BigInt(k1)) >> 16n)
+      ;(n2 = this.m_Hak[l1].m_ifan[i1]).x = Physics.mulShift16(n1.m_eI, j1)
+      n2.y = Physics.mulShift16(n1.m_dI, j1)
+      let k1 = Physics.mulShift16(j1, this.m_Hak[l1].m_forI)
+      n2.m_eI = Physics.mulShift16(n1.m_nullI, k1)
+      n2.m_dI = Physics.mulShift16(n1.m_longI, k1)
     }
   }
 
@@ -891,10 +988,10 @@ export class Physics {
       let n1 = this.m_Hak[k1].m_ifan[j]
       let n2 = this.m_Hak[k1].m_ifan[i1]
       let n3 = this.m_Hak[k1].m_ifan[j1]
-      n1.x = n2.x + Number(BigInt(n3.x) >> 1n)
-      n1.y = n2.y + Number(BigInt(n3.y) >> 1n)
-      n1.m_eI = n2.m_eI + Number(BigInt(n3.m_eI) >> 1n)
-      n1.m_dI = n2.m_dI + Number(BigInt(n3.m_dI) >> 1n)
+      n1.x = Physics.i32(n2.x + (n3.x >> 1))
+      n1.y = Physics.i32(n2.y + (n3.y >> 1))
+      n1.m_eI = Physics.i32(n2.m_eI + (n3.m_eI >> 1))
+      n1.m_dI = Physics.i32(n2.m_dI + (n3.m_dI >> 1))
     }
   }
 
@@ -912,12 +1009,11 @@ export class Physics {
     for (let i1 = 1; i1 <= 2; i1++) {
       let n1 = this.m_Hak[i1].m_ifan[this.m_vaI]
       let n2: SimpleMenuElement
-      ;(n2 = this.m_Hak[i1].m_ifan[this.m_waI]).m_bI =
-        n1.m_bI + Number((BigInt(j) * BigInt(n1.m_gotoI)) >> 16n)
-      const tmp = Number(
-        (BigInt(this.m_Hak[i1].m_newI) * BigInt(n1.m_fI)) >> 16n
+      ;(n2 = this.m_Hak[i1].m_ifan[this.m_waI]).m_bI = Physics.i32(
+        n1.m_bI + Physics.mulShift16(j, n1.m_gotoI)
       )
-      n2.m_gotoI = n1.m_gotoI + Number((BigInt(j) * BigInt(tmp)) >> 16n)
+      const tmp = Physics.mulShift16(this.m_Hak[i1].m_newI, n1.m_fI)
+      n2.m_gotoI = Physics.i32(n1.m_gotoI + Physics.mulShift16(j, tmp))
     }
   }
 
@@ -949,23 +1045,35 @@ export class Physics {
     let k1 = this.m_Hak[1].m_ifan[j].x - this.m_Hak[2].m_ifan[j].x
     let l1 = this.m_Hak[1].m_ifan[j].y - this.m_Hak[2].m_ifan[j].y
     let i2 = Physics._doIII(k1, l1)
-    k1 = Number(((BigInt(k1) << 32n) / BigInt(i2)) >> 16n)
-    let j2 = -Number(((BigInt(l1) << 32n) / BigInt(i2)) >> 16n)
+    k1 = Physics.divShift16(k1, i2)
+    let j2 = -Physics.divShift16(l1, i2)
     let k2 = k1
     for (let l2 = 0; l2 < 6; l2++) {
       if (l2 == 4 || l2 == 3) continue
       let n1 = this.m_Hak[l2].m_ifan[j]
       if (l2 == 0) {
-        n1.x += Number((BigInt(j2) * 0x10000n) >> 16n)
-        n1.y += Number((BigInt(k2) * 0x10000n) >> 16n)
+        n1.x = Physics.i32(n1.x + j2)
+        n1.y = Physics.i32(n1.y + k2)
       }
       let i3 = this.m_lf._anvI(n1, this.m_Hak[l2].m_intI)
       // contact debug logging removed
       if (l2 == 0) {
-        n1.x -= Number((BigInt(j2) * 0x10000n) >> 16n)
-        n1.y -= Number((BigInt(k2) * 0x10000n) >> 16n)
+        n1.x = Physics.i32(n1.x - j2)
+        n1.y = Physics.i32(n1.y - k2)
       }
-      if ((l2 === 1 || l2 === 2) && i3 !== 2) this.m_hadContact = true
+      if ((l2 === 1 || l2 === 2) && i3 !== 2) {
+        this.m_hadContact = true
+        if (!this._dbgContactNodes[l2]) {
+          this._dbgContactNodes[l2] = true
+          console.log("[physics dbg] wheel contact", {
+            node: l2,
+            i3,
+            pos: { x: n1.x, y: n1.y },
+            normal: { eI: this.m_lf.m_eI, dI: this.m_lf.m_dI },
+            dbgC: this._dbgC,
+          })
+        }
+      }
       this.m_EI = this.m_lf.m_eI
       this.m_CI = this.m_lf.m_dI
       if (l2 == 5 && i3 != 2) this.m_mZ = true
@@ -988,10 +1096,10 @@ export class Physics {
   _caIV(j: number) {
     let k1: k
     let n1: SimpleMenuElement
-    ;(n1 = (k1 = this.m_Hak[this.m_xaI]).m_ifan[j]).x += Number(
-      (BigInt(this.m_EI) * 3276n) >> 16n
+    ;(n1 = (k1 = this.m_Hak[this.m_xaI]).m_ifan[j]).x = Physics.i32(
+      n1.x + Physics.mulShift16(this.m_EI, 3276)
     )
-    n1.y += Number((BigInt(this.m_CI) * 3276n) >> 16n)
+    n1.y = Physics.i32(n1.y + Physics.mulShift16(this.m_CI, 3276))
     let i1: number
     let j1: number
     let l1: number
@@ -1015,34 +1123,30 @@ export class Physics {
       j2 = Physics.m_adI
     }
     let k2 = Physics._doIII(this.m_EI, this.m_CI)
-    this.m_EI = Number(((BigInt(this.m_EI) << 32n) / BigInt(k2)) >> 16n)
-    this.m_CI = Number(((BigInt(this.m_CI) << 32n) / BigInt(k2)) >> 16n)
+    this.m_EI = Physics.divShift16(this.m_EI, k2)
+    this.m_CI = Physics.divShift16(this.m_CI, k2)
     let l2: number = n1.m_eI
     let i3: number = n1.m_dI
     let j3: number = -(
-      Number((BigInt(l2) * BigInt(this.m_EI)) >> 16n) +
-      Number((BigInt(i3) * BigInt(this.m_CI)) >> 16n)
+      Physics.mulShift16(l2, this.m_EI) + Physics.mulShift16(i3, this.m_CI)
     )
     let k3: number = -(
-      Number((BigInt(l2) * BigInt(-this.m_CI)) >> 16n) +
-      Number((BigInt(i3) * BigInt(this.m_EI)) >> 16n)
+      Physics.mulShift16(l2, -this.m_CI) + Physics.mulShift16(i3, this.m_EI)
     )
+    const tmp1 = Physics.divShift16(k3, k1.m_aI)
     let l3: number =
-      Number(BigInt(i1 * n1.m_gotoI) >> 16n) -
-      ((j1 * Number(((BigInt(k3) << 32n) / BigInt(k1.m_aI)) >> 16n)) >> 16)
+      Physics.mulShift16(i1, n1.m_gotoI) - Physics.mulShift16(j1, tmp1)
+    const tmp2 = Physics.mulShift16(n1.m_gotoI, k1.m_aI)
     let i4: number =
-      Number((BigInt(i2) * BigInt(k3)) >> 16n) -
-      Number(
-        (BigInt(l1) * ((BigInt(n1.m_gotoI) * BigInt(k1.m_aI)) >> 16n)) >> 16n
-      )
-    let j4: number = -Number((BigInt(j2) * BigInt(j3)) >> 16n)
-    let k4: number = Number((BigInt(-i4) * BigInt(-this.m_CI)) >> 16n)
-    let l4: number = Number((BigInt(-i4) * BigInt(this.m_EI)) >> 16n)
-    let i5: number = Number((BigInt(-j4) * BigInt(this.m_EI)) >> 16n)
-    let j5: number = Number((BigInt(-j4) * BigInt(this.m_CI)) >> 16n)
-    n1.m_gotoI = l3
-    n1.m_eI = k4 + i5
-    n1.m_dI = l4 + j5
+      Physics.mulShift16(i2, k3) - Physics.mulShift16(l1, tmp2)
+    let j4: number = -Physics.mulShift16(j2, j3)
+    let k4: number = Physics.mulShift16(-i4, -this.m_CI)
+    let l4: number = Physics.mulShift16(-i4, this.m_EI)
+    let i5: number = Physics.mulShift16(-j4, this.m_EI)
+    let j5: number = Physics.mulShift16(-j4, this.m_CI)
+    n1.m_gotoI = l3 | 0
+    n1.m_eI = (k4 + i5) | 0
+    n1.m_dI = (l4 + j5) | 0
   }
 
   _ifZV(flag: boolean) {
@@ -1091,12 +1195,12 @@ export class Physics {
       this.m_Hak[j].m_ifan[5].x = this.m_Hak[j].m_ifan[this.m_vaI].x
       this.m_Hak[j].m_ifan[5].y = this.m_Hak[j].m_ifan[this.m_vaI].y
       this.m_Hak[j].m_ifan[5].m_bI = this.m_Hak[j].m_ifan[this.m_vaI].m_bI
-      // }
-
-      this.m_Hak[0].m_ifan[5].m_eI = this.m_Hak[0].m_ifan[this.m_vaI].m_eI
-      this.m_Hak[0].m_ifan[5].m_dI = this.m_Hak[0].m_ifan[this.m_vaI].m_dI
-      this.m_Hak[2].m_ifan[5].m_gotoI = this.m_Hak[2].m_ifan[this.m_vaI].m_gotoI
     }
+    // }
+
+    this.m_Hak[0].m_ifan[5].m_eI = this.m_Hak[0].m_ifan[this.m_vaI].m_eI
+    this.m_Hak[0].m_ifan[5].m_dI = this.m_Hak[0].m_ifan[this.m_vaI].m_dI
+    this.m_Hak[2].m_ifan[5].m_gotoI = this.m_Hak[2].m_ifan[this.m_vaI].m_gotoI
   }
 
   _voidvV() {
@@ -1105,12 +1209,12 @@ export class Physics {
       this.m_aaan[j].x = this.m_Hak[j].m_ifan[5].x
       this.m_aaan[j].y = this.m_Hak[j].m_ifan[5].y
       this.m_aaan[j].m_bI = this.m_Hak[j].m_ifan[5].m_bI
-      // }
-
-      this.m_aaan[0].m_eI = this.m_Hak[0].m_ifan[5].m_eI
-      this.m_aaan[0].m_dI = this.m_Hak[0].m_ifan[5].m_dI
-      this.m_aaan[2].m_gotoI = this.m_Hak[2].m_ifan[5].m_gotoI
     }
+    // }
+
+    this.m_aaan[0].m_eI = this.m_Hak[0].m_ifan[5].m_eI
+    this.m_aaan[0].m_dI = this.m_Hak[0].m_ifan[5].m_dI
+    this.m_aaan[2].m_gotoI = this.m_Hak[2].m_ifan[5].m_gotoI
   }
 
   _aiIV(view: GameView, i1: number, j1: number) {

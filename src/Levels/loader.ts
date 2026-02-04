@@ -272,18 +272,15 @@ export class Loader {
       } else {
         byte0 = 2
       }
-      if (byte0 == 0) {
+      const dot =
+        Number((BigInt(this.m_saaI![l4][0]) * BigInt(n1.m_eI)) >> 16n) +
+        Number((BigInt(this.m_saaI![l4][1]) * BigInt(n1.m_dI)) >> 16n)
+      if (byte0 == 0 && dot < 0) {
         this.m_eI = this.m_saaI![l4][0]
         this.m_dI = this.m_saaI![l4][1]
-        return 1
+        return 0
       }
-      if (
-        byte0 != 1 ||
-        Number((BigInt(this.m_saaI![l4][0]) * BigInt(n1.m_eI)) >> 16n) +
-          Number((BigInt(this.m_saaI![l4][1]) * BigInt(n1.m_dI)) >> 16n) >=
-          0
-      )
-        continue
+      if (byte0 != 1 || dot >= 0) continue
       k3++
       byte1 = 1
       if (k3 === 1) {

@@ -36,7 +36,9 @@ export function readShort(arr: Uint8Array) {
 export function readByte(arr: Uint8Array) {
   let result = arr.subarray(0, 1)
 
-  return [result[0], arr.subarray(1, arr.length)] as const
+  const value = result[0]
+  const signed = value & 0x80 ? value - 0x100 : value
+  return [signed, arr.subarray(1, arr.length)] as const
 }
 
 // Thanks ChatGPT
