@@ -25,15 +25,28 @@ document.body.style.minHeight = "100vh"
 document.body.style.display = "flex"
 document.body.style.alignItems = "center"
 document.body.style.justifyContent = "center"
+document.body.style.flexDirection = "column"
+document.body.style.userSelect = "none"
+;(document.body.style as any).webkitUserSelect = "none"
+;(document.body.style as any).webkitTouchCallout = "none"
 const gameRoot = document.createElement("div")
 gameRoot.id = "game-root"
 gameRoot.style.position = "relative"
 gameRoot.style.width = `${canvas.width}px`
-gameRoot.style.height = `${canvas.height}px`
-gameRoot.style.display = "block"
+gameRoot.style.display = "flex"
+gameRoot.style.flexDirection = "column"
+gameRoot.style.alignItems = "center"
 gameRoot.style.flex = "0 0 auto"
 gameRoot.style.overflow = "visible"
-gameRoot.appendChild(canvas)
+gameRoot.addEventListener("contextmenu", (e) => e.preventDefault())
+canvas.addEventListener("contextmenu", (e) => e.preventDefault())
+const gameStage = document.createElement("div")
+gameStage.id = "game-stage"
+gameStage.style.position = "relative"
+gameStage.style.width = `${canvas.width}px`
+gameStage.style.height = `${canvas.height}px`
+gameStage.appendChild(canvas)
+gameRoot.appendChild(gameStage)
 document.body.appendChild(gameRoot)
 
 const ctx = canvas.getContext("2d")
@@ -410,11 +423,9 @@ const createOnScreenKeyboard = (
   const style = document.createElement("style")
   style.textContent = `
     #on-screen-keyboard {
-      position: absolute;
-      top: calc(100% + 14px);
-      left: 50%;
-      transform: translateX(-50%);
-      width: min(360px, 96vw);
+      position: static;
+      margin-top: 12px;
+      width: min(360px, 92vw);
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 8px;
@@ -437,6 +448,7 @@ const createOnScreenKeyboard = (
       box-shadow: 2px 3px 0 #000;
       touch-action: none;
       user-select: none;
+      -webkit-touch-callout: none;
     }
     .osk-btn.pressed {
       background: #d6ffd6;
@@ -459,6 +471,7 @@ const createOnScreenKeyboard = (
     "6": "ArrowRight",
     "5": "Enter",
   }
+  const buttonByKey = new Map<string, HTMLButtonElement>()
 
   for (let i = 1; i <= 9; i++) {
     const btn = document.createElement("button")
@@ -466,6 +479,7 @@ const createOnScreenKeyboard = (
     btn.className = "osk-btn"
     btn.textContent = String(i)
     btn.dataset.key = String(i)
+    buttonByKey.set(String(i), btn)
     const press = (pressed: boolean) => {
       const key = btn.dataset.key ?? ""
       if (!key) return
@@ -482,6 +496,7 @@ const createOnScreenKeyboard = (
       press(true)
       options.onVibrate()
     })
+    btn.addEventListener("contextmenu", (e) => e.preventDefault())
     const release = (e: PointerEvent) => {
       e.preventDefault()
       press(false)
@@ -497,6 +512,8 @@ const createOnScreenKeyboard = (
     keyboard.appendChild(btn)
   }
 
+  keyboard.addEventListener("contextmenu", (e) => e.preventDefault())
+
   container.appendChild(keyboard)
 
   return {
@@ -505,10 +522,15 @@ const createOnScreenKeyboard = (
     },
     isVisible: () => !keyboard.classList.contains("hidden"),
     element: keyboard,
+    setKeyPressed: (key: string, pressed: boolean) => {
+      const btn = buttonByKey.get(key)
+      if (!btn) return
+      btn.classList.toggle("pressed", pressed)
+    },
   }
 }
 
-const menuUI = createMenuUI(gameRoot)
+const menuUI = createMenuUI(gameStage)
 window.addEventListener("keydown", menuUI.handleKey)
 
 const keyboardUI = createOnScreenKeyboard(gameRoot, {
@@ -518,10 +540,61 @@ const keyboardUI = createOnScreenKeyboard(gameRoot, {
   },
   onVibrate: () => vibrateOnTouch(),
 })
+
+const physicalKeyToOskKey: Record<string, string> = {
+  ArrowUp: "2",
+  ArrowDown: "8",
+  ArrowLeft: "4",
+  ArrowRight: "6",
+  " ": "5",
+  Enter: "5",
+  w: "2",
+  W: "2",
+  s: "8",
+  S: "8",
+  a: "4",
+  A: "4",
+  d: "6",
+  D: "6",
+  "1": "1",
+  "2": "2",
+  "3": "3",
+  "4": "4",
+  "5": "5",
+  "6": "6",
+  "7": "7",
+  "8": "8",
+  "9": "9",
+}
+
+window.addEventListener("keydown", (e) => {
+  const mapped = physicalKeyToOskKey[e.key]
+  if (mapped) keyboardUI.setKeyPressed(mapped, true)
+})
+window.addEventListener("keyup", (e) => {
+  const mapped = physicalKeyToOskKey[e.key]
+  if (mapped) keyboardUI.setKeyPressed(mapped, false)
+})
 const updateLayoutForKeyboard = () => {
   const visible = keyboardUI.isVisible()
-  document.body.style.alignItems = visible ? "flex-start" : "center"
-  document.body.style.paddingTop = visible ? "12px" : "0"
+  const padding = 12
+  document.body.style.alignItems = "center"
+  document.body.style.justifyContent = "center"
+  document.body.style.paddingTop = "0"
+  const keyboardHeight = visible
+    ? keyboardUI.element.getBoundingClientRect().height + padding
+    : 0
+  const totalHeight = canvas.height + keyboardHeight
+  const totalWidth = canvas.width
+  const availableHeight = window.innerHeight - padding * 2
+  const availableWidth = window.innerWidth - padding * 2
+  const scale = Math.min(
+    1,
+    availableHeight / Math.max(1, totalHeight),
+    availableWidth / Math.max(1, totalWidth)
+  )
+  gameRoot.style.transform = scale < 1 ? `scale(${scale})` : ""
+  gameRoot.style.transformOrigin = "center"
 }
 const updateKeyboardVisibility = () => {
   const showInMenu = keyboardIndex === 0
@@ -529,6 +602,10 @@ const updateKeyboardVisibility = () => {
   keyboardUI.setVisible(visible)
   updateLayoutForKeyboard()
 }
+
+window.addEventListener("resize", () => {
+  updateLayoutForKeyboard()
+})
 
 const menuShow = menuUI.show
 const menuHide = menuUI.hide
