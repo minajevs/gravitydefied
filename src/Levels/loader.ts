@@ -177,12 +177,12 @@ export class Loader {
     this.levels._ifIIV(j, k)
   }
 
-  _aiIV(j: GameView, k: number, i1: number) {
+  _aiIV(j: GameView, k: number, i1: number, shadowsEnabled = this.shadowsEnabled) {
     if (j != null) {
       j.setColor(0, 170, 0)
       k = Number(BigInt(k) >> 1n)
       i1 = Number(BigInt(i1) >> 1n)
-      this.levels._aiIV(j, k, i1)
+      this.levels._aiIV(j, k, i1, shadowsEnabled)
     }
   }
 

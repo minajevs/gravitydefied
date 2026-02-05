@@ -1384,33 +1384,34 @@ export class Physics {
       Number((BigInt(this.m_JaaI[i2][0]) * BigInt(0x10000 - j2)) >> 16n) +
       Number((BigInt(this.m_JaaI[i2 + 1][0]) * BigInt(j2)) >> 16n)
     if (this.m_elseZ) {
+      const toFixed2 = (value: number) => Number(BigInt(value) << 2n)
       j._aIIIV2(
-        Number((BigInt(k3) << 2n) >> 16n),
-        Number((BigInt(l3) << 2n) >> 16n),
-        Number((BigInt(k4) << 2n) >> 16n),
-        Number((BigInt(l4) << 2n) >> 16n),
+        toFixed2(k3),
+        toFixed2(l3),
+        toFixed2(k4),
+        toFixed2(l4),
         1
       )
       j._aIIIV2(
-        Number((BigInt(k4) << 2n) >> 16n),
-        Number((BigInt(l4) << 2n) >> 16n),
-        Number((BigInt(i5) << 2n) >> 16n),
-        Number((BigInt(j5) << 2n) >> 16n),
+        toFixed2(k4),
+        toFixed2(l4),
+        toFixed2(i5),
+        toFixed2(j5),
         1
       )
       j.drawBikerPart(
-        Number((BigInt(i5) << 2n) >> 16n),
-        Number((BigInt(j5) << 2n) >> 16n),
-        Number((BigInt(k5) << 2n) >> 16n),
-        Number((BigInt(l5) << 2n) >> 16n),
+        toFixed2(i5),
+        toFixed2(j5),
+        toFixed2(k5),
+        toFixed2(l5),
         2,
         i7
       )
       j._aIIIV2(
-        Number((BigInt(k5) << 2n) >> 16n),
-        Number((BigInt(l5) << 2n) >> 16n),
-        Number((BigInt(k6) << 2n) >> 16n),
-        Number((BigInt(l6) << 2n) >> 16n),
+        toFixed2(k5),
+        toFixed2(l5),
+        toFixed2(k6),
+        toFixed2(l6),
         0
       )
       let k7 = FPMath._ifIII(i1, j1)
@@ -1542,10 +1543,9 @@ export class Physics {
       this.m_lf.levels._aIIV(j2, k2)
     }
 
-    // let loader = getLevelLoader()
-    // TODO
-    // if (loader != null && loader.isPerspectiveEnabled())
-    //this.m_lf._aiIV(j, this.m_aaan[0].x, this.m_aaan[0].y)
+    if (this.m_lf && this.m_lf.isPerspectiveEnabled()) {
+      this.m_lf._aiIV(j, this.m_aaan[0].x, this.m_aaan[0].y)
+    }
     if (this.m_UZ) this._aiIV(j, i1, j1)
     if (!Activity.getGDActivity().isMenuShown()) this._aiV(j)
     this._doiV(j)

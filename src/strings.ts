@@ -1,0 +1,27 @@
+export const STRINGS = {
+  crashed: "Crashed",
+  wheelie: "Wheelie!",
+  finished1: "Finished",
+  finished: "Finished!",
+  time: "Time",
+  records: "High Scores",
+  level: "Level",
+  track: "Track",
+  league: "League",
+  enter_name: "Enter Name",
+  ok: "Ok",
+  cancel: "Cancel",
+  name: "Name",
+  finished_places: ["First place!", "Second place!", "Third place!"],
+  league_unlocked: "League unlocked",
+  league_unlocked_text: "You have successfully unlocked a new league: ",
+  congratulations:
+    "Congratulations! You have successfully unlocked a new league: ",
+  enjoy: "Enjoy...",
+  level_completed_text: "You have completed all tracks at this level.",
+  complete_to_unlock: "Complete more tracks to unlock this track/league combo.",
+  tracks_completed_tpl: (completed: number, total: number, difficulty: string) =>
+    `${completed} of ${total} tracks in ${difficulty} completed.`,
+  leagues: ["100cc", "175cc", "220cc"],
+  difficulty: ["Easy", "Medium", "Hard"],
+} as const

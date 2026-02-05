@@ -261,7 +261,13 @@ export class GameView {
     GameView.m_VI += (6553 * j) >> 16
   }
 
-  _intII(j: number) {}
+  _intII(j: number) {
+    return j
+  }
+
+  setInputOption(option: number) {
+    this.inputOption = option
+  }
 
   setShowIntro(flag: 0 | 1 | 2) {
     this.showIntro = flag

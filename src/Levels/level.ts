@@ -142,7 +142,7 @@ export class Level {
     }
   }
 
-  _aiIV(view: GameView, k: number, i1: number) {
+  _aiIV(view: GameView, k: number, i1: number, shadowsEnabled = true) {
     let k2 = 0
     let l2 = 0
     let j2: number
@@ -209,9 +209,7 @@ export class Level {
       ((this.points[this.pointsCount - 1][1] + i2) << 3) >> 16
     )
 
-    // TODO
-    // if (getLevelLoader().isShadowsEnabled())
-    this._ifiIV(view, k2, l2)
+    if (shadowsEnabled) this._ifiIV(view, k2, l2)
   }
 
   _aiV(view: GameView) {
