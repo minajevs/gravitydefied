@@ -138,17 +138,6 @@ export class Physics {
   leftWheelUpdatingFrequency = 20 as const
   leftWheelLastUpdated = 0
   leftWheelParams: number[][]
-  private _dbgC = 0
-  private _dbgInvalidLogged = false
-  private _dbgContactLogged = false
-  private _dbgCrashLogged = false
-  private _dbgRestWheelDist: number | null = null
-  private _dbgContactNodes: boolean[] = []
-  private _dbgRatioMarks: Record<number, boolean> = {}
-  // True after either wheel has made terrain contact in current run
-  private m_hadContact: boolean
-  // Counts consecutive out-of-bounds wheel-span checks after contact
-  private m_crashOutCount: number = 0
   private static toSigned(n: number): number {
     return n > 0x7fffffff ? n - 0x100000000 : n
   }
@@ -227,7 +216,6 @@ export class Physics {
 
     // Ensure hex literals from decompiled Java are treated as signed 32-bit ints
     this.fixSignedTables()
-    this.m_hadContact = false
   }
 
   static _doIII(j: number, i1: number) {
@@ -344,7 +332,6 @@ export class Physics {
   _doZV(flag: boolean) {
     this.m_tI = 0
     this._iIIV(this.m_lf._newvI(), this.m_lf._avI())
-    this._dbgRestWheelDist = this._dbgWheelDistSq()
     this.m_cI = 0
     this.m_kI = 0
     this.m_IZ = false
@@ -354,13 +341,6 @@ export class Physics {
     this.m_vZ = false
     this.m_bZ = false
     this.m_afZ = false
-    this.m_hadContact = false
-    this.m_crashOutCount = 0
-    this._dbgInvalidLogged = false
-    this._dbgContactLogged = false
-    this._dbgCrashLogged = false
-    this._dbgContactNodes = []
-    this._dbgRatioMarks = {}
     this.m_lf.levels._aIIV(
       this.m_Hak[2].m_ifan[5].x + 0x18000 - Physics.m_foraI[0],
       this.m_Hak[1].m_ifan[5].x - 0x18000 + Physics.m_foraI[0]
@@ -684,7 +664,6 @@ export class Physics {
     //   this.m_Hak[1].m_ifan[this.m_vaI].x,
     //   this.m_Hak[1].m_ifan[this.m_vaI].y
     // ) position of a bike
-    this._dbgCheckState("pre")
     this.m_dZ = this.m_ifZ
     this.m_FZ = this.m_sZ
     this.m_XZ = this.m_OZ
@@ -694,7 +673,6 @@ export class Physics {
     this._qvV()
     let j: number
     if ((j = this._uII(Physics.m_YI)) == 5 || this.m_mZ) return 5
-    this._dbgCheckState("post_uII")
     if (this.m_IZ) return 3
     if (this._newvZ()) {
       this.m_NZ = false
@@ -702,58 +680,6 @@ export class Physics {
     } else {
       return j
     }
-  }
-
-  private _dbgCheckState(tag: string) {
-    if (this._dbgInvalidLogged) return
-    const issues: string[] = []
-    if (!this.m_Hak || this.m_Hak.length < 6) {
-      issues.push(`m_Hak missing/short: ${this.m_Hak?.length ?? "null"}`)
-    } else {
-      for (let i = 0; i < 6; i++) {
-        const node = this.m_Hak[i]
-        if (!node) {
-          issues.push(`m_Hak[${i}] is null/undefined`)
-          continue
-        }
-        if (!node.m_ifan || node.m_ifan.length < 6) {
-          issues.push(`m_Hak[${i}].m_ifan missing/short`)
-          continue
-        }
-        if (this._dbgC > 0 && (!Number.isFinite(node.m_forI) || node.m_forI === 0)) {
-          issues.push(`m_Hak[${i}].m_forI invalid: ${node.m_forI}`)
-        }
-        for (let j = 0; j < 6; j++) {
-          const p = node.m_ifan[j]
-          if (!p) {
-            issues.push(`m_Hak[${i}].m_ifan[${j}] null/undefined`)
-            continue
-          }
-          if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) {
-            issues.push(`m_Hak[${i}].m_ifan[${j}] pos invalid: ${p.x},${p.y}`)
-          }
-          if (!Number.isFinite(p.m_eI) || !Number.isFinite(p.m_dI)) {
-            issues.push(
-              `m_Hak[${i}].m_ifan[${j}] vel invalid: ${p.m_eI},${p.m_dI}`
-            )
-          }
-        }
-      }
-    }
-    if (issues.length > 0) {
-      this._dbgInvalidLogged = true
-      console.warn("[physics dbg] invalid state", { tag, issues, dbgC: this._dbgC })
-    }
-  }
-
-  private _dbgWheelDistSq(): number {
-    const dx =
-      this.m_Hak[1].m_ifan[this.m_vaI].x - this.m_Hak[2].m_ifan[this.m_vaI].x
-    const dy =
-      this.m_Hak[1].m_ifan[this.m_vaI].y - this.m_Hak[2].m_ifan[this.m_vaI].y
-    const dx2 = Number((BigInt(dx) * BigInt(dx)) >> 16n)
-    const dy2 = Number((BigInt(dy) * BigInt(dy)) >> 16n)
-    return dx2 + dy2
   }
 
   _newvZ() {
@@ -772,15 +698,12 @@ export class Physics {
     let i1 = 0
     let j1 = j
     let j2: number
-    this._dbgRatioProbe("start_uII")
     do {
       if (i1 >= j) break
       this._aaIV(j1 - i1)
-      this._dbgRatioProbe("after_aaIV")
       let k1: number
       if (!flag && this._longvZ()) k1 = 3
       else k1 = this._baII(this.m_waI)
-      this._dbgRatioProbe("after_baII")
       if (!flag && this.m_RZ) return k1 == 3 ? 1 : 2
       if (k1 == 0) {
         if (
@@ -797,7 +720,6 @@ export class Physics {
         if (k1 == 1)
           do {
             this._caIV(this.m_waI)
-            this._dbgRatioProbe("after_caIV")
             j2 = this._baII(this.m_waI)
             i2 = j2
             if (j2 == 0) return 5
@@ -806,7 +728,6 @@ export class Physics {
         j1 = j
         this.m_vaI = this.m_vaI != 1 ? 1 : 0
         this.m_waI = this.m_waI != 1 ? 1 : 0
-        this._dbgRatioProbe("after_swap")
       }
     } while (true)
     // Compute squared distance between wheel anchors using 64-bit fixed math
@@ -816,60 +737,10 @@ export class Physics {
       this.m_Hak[1].m_ifan[this.m_vaI].y - this.m_Hak[2].m_ifan[this.m_vaI].y
     const dx2 = Number((BigInt(dx) * BigInt(dx)) >> 16n)
     const dy2 = Number((BigInt(dy) * BigInt(dy)) >> 16n)
-    const l1 = dx2 + dy2
-    if (this.m_hadContact) {
-      // Allow a bit more early-frame slack on upper bound while the bike settles
-      const upperSlack = this._dbgC < 300 ? 0x100000 : 0
-      const upper = 0x460000 + upperSlack
-      const lower = 0x0f0000
-      const outOfBounds = l1 < lower || l1 > upper
-      this.m_crashOutCount = outOfBounds ? this.m_crashOutCount + 1 : 0
-      // Require sustained out-of-bounds for a short period to avoid spurious crashes
-      if (this.m_crashOutCount > 120) this.m_IZ = true
-    }
-    if (this.m_IZ && !this._dbgCrashLogged) {
-      this._dbgCrashLogged = true
-      const rest = this._dbgRestWheelDist
-      const ratio = rest ? Number((BigInt(l1) * 1000n) / BigInt(rest)) / 1000 : null
-      console.warn("[physics dbg] crash flagged", {
-        dx,
-        dy,
-        l1,
-        rest,
-        ratio,
-        hadContact: this.m_hadContact,
-        crashOutCount: this.m_crashOutCount,
-        dbgC: this._dbgC,
-      })
-    }
-    if (this._dbgC < 100 && this.m_IZ) {
-      console.log(
-        `[crashCheck] dx=${dx} dy=${dy} l1=${l1} below=${l1 < 0x0f0000} above=${
-          l1 > 0x460000
-        }`
-      )
-    }
-    this._dbgRatioProbe("end_uII")
+    const l1 = Physics.i32(dx2 + dy2)
+    if (l1 < 0xf0000) this.m_IZ = true
+    if (l1 > 0x460000) this.m_IZ = true
     return 0
-  }
-
-  private _dbgRatioProbe(stage: string) {
-    if (this._dbgRestWheelDist === null) return
-    const curr = this._dbgWheelDistSq()
-    const ratio = Number((BigInt(curr) * 1000n) / BigInt(this._dbgRestWheelDist)) / 1000
-    const thresholds = [1.2, 1.5, 2.0]
-    for (const t of thresholds) {
-      if (ratio >= t && !this._dbgRatioMarks[t]) {
-        this._dbgRatioMarks[t] = true
-        console.warn("[physics dbg] ratio crossed", {
-          stage,
-          ratio,
-          curr,
-          rest: this._dbgRestWheelDist,
-          dbgC: this._dbgC,
-        })
-      }
-    }
   }
 
   _aIV(j: number) {
@@ -1005,7 +876,6 @@ export class Physics {
     this._zIIV(this.m_waI, this.m_vaI, 2)
     this._zIIV(this.m_waI, this.m_waI, 3)
 
-    // wheels?!?!?!?! oh my god i found it!!!!!
     for (let i1 = 1; i1 <= 2; i1++) {
       let n1 = this.m_Hak[i1].m_ifan[this.m_vaI]
       let n2: SimpleMenuElement
@@ -1035,11 +905,9 @@ export class Physics {
           : this.m_Hak[1].m_ifan[j].x) >= this.m_Hak[5].m_ifan[j].x
         ? /* dexie */ this.m_Hak[5].m_ifan[j].x
         : j1
-    // Widen the initial terrain query window for the first few frames
-    const extra = this._dbgC < 30 ? Physics.m_foraI[0] : 0
     this.m_lf._aIIV(
-      j1 - Physics.m_foraI[0] - extra,
-      i1 + Physics.m_foraI[0] + extra,
+      j1 - Physics.m_foraI[0],
+      i1 + Physics.m_foraI[0],
       this.m_Hak[5].m_ifan[j].y
     )
     let k1 = this.m_Hak[1].m_ifan[j].x - this.m_Hak[2].m_ifan[j].x
@@ -1056,23 +924,9 @@ export class Physics {
         n1.y = Physics.i32(n1.y + k2)
       }
       let i3 = this.m_lf._anvI(n1, this.m_Hak[l2].m_intI)
-      // contact debug logging removed
       if (l2 == 0) {
         n1.x = Physics.i32(n1.x - j2)
         n1.y = Physics.i32(n1.y - k2)
-      }
-      if ((l2 === 1 || l2 === 2) && i3 !== 2) {
-        this.m_hadContact = true
-        if (!this._dbgContactNodes[l2]) {
-          this._dbgContactNodes[l2] = true
-          console.log("[physics dbg] wheel contact", {
-            node: l2,
-            i3,
-            pos: { x: n1.x, y: n1.y },
-            normal: { eI: this.m_lf.m_eI, dI: this.m_lf.m_dI },
-            dbgC: this._dbgC,
-          })
-        }
       }
       this.m_EI = this.m_lf.m_eI
       this.m_CI = this.m_lf.m_dI
@@ -1089,7 +943,6 @@ export class Physics {
       break
     }
 
-    this._dbgC++
     return byte0
   }
 
@@ -1357,8 +1210,7 @@ export class Physics {
     // left wheel
     l1 = j1
     i2 = 0
-    // k2 = FPMath._doII(j2 = m_aaan[2].m_bI)
-    k2 = FPMath._doII((j2 = Math.round(this.m_aaan[2].m_bI / 1.75)))
+    k2 = FPMath._doII((j2 = this.m_aaan[2].m_bI))
     l2 = FPMath.sin(j2)
     i3 = l1
     l1 =
