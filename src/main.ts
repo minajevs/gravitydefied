@@ -5,12 +5,18 @@ import { Level } from "./Levels/level"
 import { Loader } from "./Levels/loader"
 import { Reader } from "./Levels/reader"
 import { readStreamToEnd, skipBytes } from "./Levels/readerUtils"
+import { Activity } from "./activity"
 
 const canvas = document.createElement("canvas")
-;(canvas.id = "GameCanvas"),
+;((canvas.id = "GameCanvas"),
   (canvas.width = 400),
   (canvas.height = 600),
-  (canvas.style.border = "1px solid")
+  (canvas.style.border = "1px solid"))
+document.body.style.margin = "0"
+document.body.style.minHeight = "100vh"
+document.body.style.display = "flex"
+document.body.style.alignItems = "center"
+document.body.style.justifyContent = "center"
 document.body.appendChild(canvas)
 
 const ctx = canvas.getContext("2d")
@@ -185,12 +191,14 @@ const createMenuUI = () => {
     if (screen) setScreen(screen)
     if (!current && root) setScreen(root)
     menuButton.style.display = "none"
+    Activity.getGDActivity().menuShown = true
   }
 
   const hide = () => {
     shown = false
     overlay.style.display = "none"
     menuButton.style.display = menuButtonVisible ? "block" : "none"
+    Activity.getGDActivity().menuShown = false
   }
 
   const setRoot = (screen: MenuScreen) => {
@@ -321,6 +329,16 @@ const sleep = async () => {
   return Date.now() - time
 }
 
+const getInputVector = () => {
+  let throttle = 0
+  let lean = 0
+  if (keys[UP] || keys["w"] || keys["W"]) throttle += 1
+  if (keys[DOWN] || keys["s"] || keys["S"]) throttle -= 1
+  if (keys[RIGHT] || keys["d"] || keys["D"]) lean += 1
+  if (keys[LEFT] || keys["a"] || keys["A"]) lean -= 1
+  return { throttle, lean }
+}
+
 const init = () => {
   //img.src = "helmet.png"
   window.requestAnimationFrame(draw)
@@ -329,39 +347,69 @@ const init = () => {
 let gameState = "playing" // "playing", "crashed", "finished", etc.
 let crashTimer = 0
 let finishTimer = 0
+let advancing = false
+let startedTime = 0
+let finishedTime = 0
+let pausedTime = 0
+let pausedTimeStarted = 0
 
 const draw = (frame: number) => {
-  if (gameView.showIntro === 0 && !menuUI.isShown()) {
+  if (
+    gameView.showIntro === 0 &&
+    !menuUI.isShown() &&
+    gameState !== "loading"
+  ) {
     // Update physics and game logic only after intros finish.
     physEngine._doIV(1) // neutral input
+    const input = getInputVector()
+    physEngine._aIIV(input.throttle, input.lean)
     const k = physEngine._dovI()
 
-    // Only act on real crash (3) and win (1/2). Ignore 4/5.
-    if (k === 3 && gameState !== "crashed") {
+    // Treat both crash outcomes as crash: 3 (broken) and 5 (hard crash).
+    if ((k === 3 || k === 5) && gameState !== "crashed") {
       gameState = "crashed"
       crashTimer = Date.now() + 3000
+      gameView.showInfoMessage("Crashed", 3000)
     } else if ((k === 1 || k === 2) && gameState !== "win") {
       gameState = "win"
+      finishedTime = Date.now()
       finishTimer = Date.now() + 1000
     }
+
+    const running = k !== 4
+    if (running && startedTime === 0) {
+      startedTime = Date.now()
+    }
+
+    const now = Date.now()
+    let timeTicks = 0
+    if (startedTime > 0) {
+      const effectiveEnd = finishedTime > 0 ? finishedTime : now
+      timeTicks = Math.floor((effectiveEnd - startedTime - pausedTime) / 10)
+    }
+    gameView.setTimerValue(timeTicks)
 
     // Handle timers for crash/finish/win
     if (gameState === "crashed" && Date.now() > crashTimer) {
       physEngine._doZV(true)
+      startedTime = 0
+      finishedTime = 0
+      pausedTime = 0
+      pausedTimeStarted = 0
       gameState = "playing"
     }
-    if (
-      (gameState === "finished" || gameState === "win") &&
-      Date.now() > finishTimer
-    ) {
-      physEngine._doZV(true)
-      gameState = "playing"
+    if (gameState === "win" && Date.now() > finishTimer && !advancing) {
+      advancing = true
+      gameState = "loading"
+      void advanceToNextTrack()
     }
 
     physEngine._charvV()
     console.log(
-      `State: ${gameState}, k=${k}, pos=(${physEngine._ifvI()},${physEngine._elsevI()})`
+      `State: ${gameState}, k=${k}, pos=(${physEngine._ifvI()},${physEngine._elsevI()})`,
     )
+  } else if (gameView.showIntro === 0 && menuUI.isShown()) {
+    physEngine._aIIV(0, 0)
   }
 
   gameView.onDraw()
@@ -400,12 +448,41 @@ const getTrackOptions = () => {
   return ["Track 1"]
 }
 
+const advanceToNextTrack = async () => {
+  const tracks = getTrackOptions()
+  let nextLevel = selectedLevel
+  let nextTrack = selectedTrack + 1
+
+  if (nextTrack >= tracks.length) {
+    nextTrack = 0
+    nextLevel += 1
+  }
+
+  if (nextLevel >= levelOptions.length) {
+    nextLevel = 0
+  }
+
+  selectedLevel = nextLevel
+  selectedTrack = nextTrack
+  try {
+    await startTrack()
+  } finally {
+    advancing = false
+  }
+}
+
 const startTrack = async () => {
   const levelIndex = Math.min(selectedLevel, Math.max(0, trackNames.length - 1))
   const tracks = getTrackOptions()
   const trackIndex = Math.min(selectedTrack, Math.max(0, tracks.length - 1))
   await loader._doIII(levelIndex, trackIndex)
+  gameView.showInfoMessage(loader.getLevelName(levelIndex, trackIndex), 3000)
+  physEngine.setLeague(selectedLeague + 1)
   physEngine._doZV(true)
+  startedTime = 0
+  finishedTime = 0
+  pausedTime = 0
+  pausedTimeStarted = 0
   gameState = "playing"
   gameStarted = true
   menuUI.hide()
@@ -420,7 +497,11 @@ const modsMenu: MenuScreen = {
   parent: mainMenu,
   text: "Mods are not implemented yet.",
 }
-const optionsMenu: MenuScreen = { title: "Options", items: [], parent: mainMenu }
+const optionsMenu: MenuScreen = {
+  title: "Options",
+  items: [],
+  parent: mainMenu,
+}
 const helpMenu: MenuScreen = { title: "Help", items: [], parent: mainMenu }
 const aboutMenu: MenuScreen = {
   title: "About",
@@ -573,6 +654,7 @@ playMenu.items = [
     onChange: (dir) => {
       const count = leagues.length
       selectedLeague = (selectedLeague + dir + count) % count
+      physEngine.setLeague(selectedLeague + 1)
     },
   },
   { label: "High Scores", type: "submenu", target: highscoresMenu },

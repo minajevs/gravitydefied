@@ -7,6 +7,7 @@ type BitmapType =
   | "wheels"
   | "engine"
   | "fender"
+  | "biker"
 
 const images = {
   helmet: [new Image()],
@@ -24,6 +25,7 @@ const images = {
   wheels: [new Image(), new Image()],
   fender: [new Image()],
   engine: [new Image()],
+  biker: [new Image(), new Image(), new Image()],
 } satisfies Record<BitmapType, HTMLImageElement[]>
 
 const assets = {
@@ -42,6 +44,7 @@ const assets = {
   wheels: ["s_wheel1", "s_wheel2"],
   fender: ["s_fender"],
   engine: ["s_engine"],
+  biker: ["s_bluearm", "s_blueleg", "s_bluebody"],
 } satisfies Record<BitmapType, string[]>
 
 ;(Object.entries(images) as [BitmapType, [HTMLImageElement]][]).map(
@@ -57,16 +60,36 @@ const assets = {
 )
 
 export class Bitmap {
+  // Most public assets are xxhdpi (3x). Logos are hdpi (1.5x).
+  private static defaultDensity = 3
+  private static densityByType: Partial<Record<BitmapType, number>> = {
+    logo: 1.5,
+    logo2: 1.5,
+  }
+
+  static setDensity(density: number) {
+    if (Number.isFinite(density) && density > 0) this.defaultDensity = density
+  }
+
+  static setTypeDensity(type: BitmapType, density: number) {
+    if (Number.isFinite(density) && density > 0)
+      this.densityByType[type] = density
+  }
+
+  private static getDensity(type: BitmapType): number {
+    return this.densityByType[type] ?? this.defaultDensity
+  }
+
   // Returns device-independent width for a given bitmap type/index
   static getWidthDp(type: BitmapType, arrayIndex: number = 0): number {
     const img = images[type][arrayIndex]
-    return img.width / window.devicePixelRatio
+    return img.width / this.getDensity(type)
   }
 
   // Returns device-independent height for a given bitmap type/index
   static getHeightDp(type: BitmapType, arrayIndex: number = 0): number {
     const img = images[type][arrayIndex]
-    return img.height / window.devicePixelRatio
+    return img.height / this.getDensity(type)
   }
   static get(type: BitmapType, arrayIndex: number = 0) {
     const holder = images[type]

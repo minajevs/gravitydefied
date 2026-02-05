@@ -1210,7 +1210,7 @@ export class Physics {
     // left wheel
     l1 = j1
     i2 = 0
-    k2 = FPMath._doII((j2 = this.m_aaan[2].m_bI))
+    k2 = FPMath._doII((j2 = Math.round(this.m_aaan[2].m_bI / 1.75)))
     l2 = FPMath.sin(j2)
     i3 = l1
     l1 =
@@ -1547,8 +1547,7 @@ export class Physics {
     // if (loader != null && loader.isPerspectiveEnabled())
     //this.m_lf._aiIV(j, this.m_aaan[0].x, this.m_aaan[0].y)
     if (this.m_UZ) this._aiIV(j, i1, j1)
-    //if (!getGDActivity().isMenuShown()) this._aiV(j)
-    this._aiV(j)
+    if (!Activity.getGDActivity().isMenuShown()) this._aiV(j)
     this._doiV(j)
     if (this.m_UZ) j.setColor(170, 0, 0)
     else j.setColor(50, 50, 50)
