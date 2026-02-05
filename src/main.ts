@@ -234,7 +234,6 @@ const createMenuUI = (container: HTMLElement) => {
   let shown = false
   let menuButtonVisible = false
   let menuButtonTarget: (() => MenuScreen | null) | null = null
-  let keyboardEnabled = true
 
   const render = () => {
     if (!current) return
@@ -344,7 +343,6 @@ const createMenuUI = (container: HTMLElement) => {
 
   const handleKey = (e: KeyboardEvent) => {
     if (!shown || !current) return
-    if (!keyboardEnabled && current.textClass !== "name-entry") return
     if (current.onKey && current.onKey(e)) {
       render()
       return
@@ -400,9 +398,7 @@ const createMenuUI = (container: HTMLElement) => {
     setRoot,
     setScreen,
     handleKey,
-    setKeyboardEnabled: (enabled: boolean) => {
-      keyboardEnabled = enabled
-    },
+    setKeyboardEnabled: (_enabled: boolean) => {},
     setMenuButtonVisible,
     setMenuButtonTarget: (fn: () => MenuScreen | null) => {
       menuButtonTarget = fn
@@ -597,8 +593,7 @@ const updateLayoutForKeyboard = () => {
   gameRoot.style.transformOrigin = "center"
 }
 const updateKeyboardVisibility = () => {
-  const showInMenu = keyboardIndex === 0
-  const visible = !menuUI.isShown() || showInMenu
+  const visible = keyboardIndex === 0
   keyboardUI.setVisible(visible)
   updateLayoutForKeyboard()
 }
@@ -1348,7 +1343,6 @@ const applyLookAheadOption = () => {
 }
 
 const applyMenuKeyboardOption = () => {
-  menuUI.setKeyboardEnabled(keyboardIndex === 0)
   updateKeyboardVisibility()
 }
 
